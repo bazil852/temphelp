@@ -1,0 +1,309 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background-color: black;
+}
+
+/* Override Tailwind's default blue colors with our custom primary color */
+.bg-blue-600 {
+  background-color: #c9fffc !important;
+  color: black !important;
+}
+
+.bg-blue-700:hover {
+  background-color: #b4e6e3 !important;
+  color: black !important;
+}
+
+.text-blue-600 {
+  color: #c9fffc !important;
+}
+
+.text-blue-700:hover {
+  color: #b4e6e3 !important;
+}
+
+.hover\:bg-blue-700:hover {
+  background-color: #b4e6e3 !important;
+  color: black !important;
+}
+
+.focus\:ring-blue-500:focus {
+  --tw-ring-color: #c9fffc !important;
+}
+
+.focus\:border-blue-500:focus {
+  border-color: #c9fffc !important;
+}
+
+/* Brand text color */
+.text-indigo-600 {
+  color: #c9fffc !important;
+}
+
+/* Update text colors for better contrast on dark background */
+.text-gray-900 {
+  color: #ffffff !important;
+}
+
+.text-gray-700 {
+  color: #e5e5e5 !important;
+}
+
+.text-gray-600 {
+  color: #d1d1d1 !important;
+}
+
+.text-gray-500 {
+  color: #a1a1a1 !important;
+}
+
+/* Update background colors for cards and modals */
+.bg-white {
+  background-color: #1a1a1a !important;
+}
+
+.bg-gray-50 {
+  background-color: #0a0a0a !important;
+}
+
+.bg-gray-100 {
+  background-color: #141414 !important;
+}
+
+/* Fix input backgrounds and borders */
+input, textarea {
+  background-color: #2a2a2a !important;
+  border-color: #404040 !important;
+  color: #ffffff !important;
+}
+
+input:focus, textarea:focus {
+  border-color: #c9fffc !important;
+}
+
+/* Content planner input styles */
+.content-planner-input {
+  transition: all 0.2s ease-in-out;
+}
+
+.content-planner-input:focus {
+  position: fixed !important;
+  z-index: 99999 !important;
+  left: 25% !important;
+  width: 50% !important;
+  height: 16rem !important;
+  top: 50% !important;
+  transform: translateY(-50%) !important;
+  background-color: #2a2a2a !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75) !important;
+  padding: 1rem !important;
+  border: 2px solid #c9fffc !important;
+  border-radius: 0.5rem !important;
+  color: #ffffff !important;
+}
+
+/* Fix modal backdrop */
+.bg-gray-500.bg-opacity-75 {
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  z-index: 50 !important;
+}
+
+/* Fix button borders */
+.border-gray-300 {
+  border-color: #404040 !important;
+}
+
+/* Fix shadow colors */
+.shadow-md {
+  --tw-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.5), 0 2px 4px -1px rgba(0, 0, 0, 0.06) !important;
+}
+
+.shadow-lg {
+  --tw-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Table styles */
+table {
+  background-color: #1a1a1a !important;
+}
+
+thead {
+  background-color: #0a0a0a !important;
+}
+
+tbody tr:hover {
+  background-color: #2a2a2a !important;
+}
+
+/* Select styles */
+select {
+  background-color: #2a2a2a !important;
+  border-color: #404040 !important;
+  color: #ffffff !important;
+}
+
+select option {
+  background-color: #2a2a2a !important;
+  color: #ffffff !important;
+}
+
+/* AI dropdown menu */
+.ai-options {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  margin-top: 0.5rem !important;
+  z-index: 9 !important;
+  min-width: 12rem !important;
+  background-color: #2a2a2a !important;
+  border: 2px solid #c9fffc !important;
+  border-radius: 0.5rem !important;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.75) !important;
+}
+
+.ai-options button:hover {
+  background-color: #3a3a3a !important;
+  color: #c9fffc !important;
+}
+
+/* Ensure dropdowns appear above everything */
+.absolute {
+  z-index: 9 !important;
+}
+
+/* Chatbot animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+.chatbot-enter {
+  animation: slideIn 0.3s ease-out forwards;
+}
+
+.chatbot-exit {
+  animation: slideOut 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Custom scrollbar styles */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+/* TipTap Editor Styles */
+.ProseMirror {
+  color: white !important;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3,
+.ProseMirror h4,
+.ProseMirror h5,
+.ProseMirror h6,
+.ProseMirror p,
+.ProseMirror ul,
+.ProseMirror ol,
+.ProseMirror blockquote,
+.ProseMirror code {
+  color: white !important;
+}
+
+.ProseMirror blockquote {
+  border-left-color: #4B5563;
+  background-color: rgba(75, 85, 99, 0.2);
+}
+
+.ProseMirror code {
+  background-color: rgba(75, 85, 99, 0.3);
+  padding: 0.2em 0.4em;
+  border-radius: 0.3em;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  padding-left: 1.5em;
+}
+
+.ProseMirror ul li::marker {
+  color: white !important;
+}
+
+.ProseMirror ol li::marker {
+  color: white !important;
+}
+
+.relative.h-2.bg-gray-700.rounded-full.overflow-hidden {
+  position: relative;
+  z-index: 1;
+}
+
+.absolute.top-0.left-0.h-full.bg-[#c9fffc].transition-all.duration-500 {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  z-index: 2;
+}
+
+/* Modal content should be above backdrop */
+.fixed.inset-0.bg-black.bg-opacity-50.flex.items-center.justify-center {
+  z-index: 100 !important;
+}
+
+.bg-[#1a1a1a].rounded-lg {
+  z-index: 101 !important;
+}
