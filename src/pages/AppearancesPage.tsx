@@ -1,13 +1,17 @@
-import React from 'react';
+import React,{useState} from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, Users } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Loader2, Wand2 } from 'lucide-react';
 import { useInfluencerStore } from '../store/influencerStore';
 import { InfluencerCard } from '../components/InfluencerCard';
 import AddLookModal from '../components/AddLookModal';
+import { useAuthStore } from '../store/authStore';
 
 export default function AppearancesPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [isAddingMotion, setIsAddingMotion] = useState(false);
+  const [motionSuccess, setMotionSuccess] = useState(false);
+  const { currentUser } = useAuthStore();
   const { influencers, fetchInfluencers } = useInfluencerStore();
   const [showAddLookModal, setShowAddLookModal] = React.useState(false);
   const influencer = influencers.find((inf) => inf.id === id);
@@ -15,6 +19,55 @@ export default function AppearancesPage() {
     inf.id !== id && inf.look_id === influencer?.id
   );
 
+  const handleAddMotion = async () => {
+    if (!influencer || !currentUser?.heygenApiKey) return;
+    
+    setIsAddingMotion(true);
+    try {
+      // First get the group_id
+      const response = await fetch(
+        `https://api.heygen.com/v2/photo_avatar/${influencer.templateId}`,
+        {
+          headers: {
+            accept: "application/json",
+            "x-api-key": currentUser.heygenApiKey,
+          },
+        }
+      );
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error?.message || 'Failed to fetch group ID');
+      
+      const groupId = data.data.group_id;
+      
+      // Add motion using group_id
+      const motionResponse = await fetch(
+        "https://api.heygen.com/v2/photo_avatar/add_motion",
+        {
+          method: "POST",
+          headers: {
+            accept: "application/json",
+            "content-type": "application/json",
+            "x-api-key": currentUser.heygenApiKey,
+          },
+          body: JSON.stringify({ id: groupId }),
+        }
+      );
+
+      if (!motionResponse.ok) {
+        const errorData = await motionResponse.json();
+        throw new Error(errorData.error?.message || 'Failed to add motion');
+      }
+
+      setMotionSuccess(true);
+      setTimeout(() => setMotionSuccess(false), 5000);
+    } catch (error) {
+      console.error('Error adding motion:', error);
+      alert('Failed to add motion. Please try again.');
+    } finally {
+      setIsAddingMotion(false);
+    }
+  };
   const handleCreateLook = async (prompt: string) => {
     // TODO: Implement look creation logic
     console.log('Creating look with prompt:', prompt);
@@ -39,8 +92,30 @@ export default function AppearancesPage() {
         <h1 className="text-2xl font-bold text-[#c9fffc]">
           {influencer.name}'s Appearances
         </h1>
+        <button
+          onClick={handleAddMotion}
+          disabled={isAddingMotion}
+          className="flex items-center gap-2 px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors"
+        >
+          {isAddingMotion ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Adding Motion...
+            </>
+          ) : (
+            <>
+              <Wand2 className="h-4 w-4" />
+              Add Motion
+            </>
+          )}
+        </button>
       </div>
 
+      {motionSuccess && (
+        <div className="mb-6 p-4 bg-green-100 text-green-800 rounded-lg">
+          Motion will be applied in a few minutes
+        </div>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <button
           onClick={() => setShowAddLookModal(true)}

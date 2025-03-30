@@ -8,14 +8,18 @@ import DashboardPage from './pages/DashboardPage';
 import ContentPage from './pages/ContentPage';
 import SettingsPage from './pages/SettingsPage';
 import ContentPlannerPage from './pages/ContentPlannerPage';
+import VideoEditorPage from './pages/VideoEditorPage';
 import AppearancesPage from './pages/AppearancesPage';
 import Chatbot from './components/Chatbot';
+import VideoDubbingPage from './pages/VideoDubbingPage';
 import TutorialPage from './pages/TutorialPage';
 import ApiSetupModal from './components/ApiSetupModal';
 import { useAuthStore } from './store/authStore';
 import UpdatePlan from './pages/UpdatePlan';
 import AdminPanel from './pages/AdminPanel';
 import CreateAiAvatarPage from './pages/CreateAiAvatarPage';
+import CreateAiClonePage from './pages/CreateAiClonePage';
+import CreatePhotoAvatarPage from './pages/CreatePhotoAvatarPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -79,6 +83,14 @@ function App() {
             }
           />
           <Route
+            path="clone-content/:id"
+            element={
+              <ProtectedRoute>
+                <ContentPage isClone />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="planner"
             element={
               <ProtectedRoute>
@@ -126,7 +138,47 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="create-ai-clone"
+            element={
+              <ProtectedRoute>
+                <CreateAiClonePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="create-photo-avatar"
+            element={
+              <ProtectedRoute>
+                <CreatePhotoAvatarPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="video-dubbing"
+            element={
+              <ProtectedRoute>
+                <VideoDubbingPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="video-editor"
+            element={
+              <ProtectedRoute>
+                <VideoEditorPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/update-plan" element={<UpdatePlan />} />
+          <Route
+            path="create-ai-clone"
+            element={
+              <ProtectedRoute>
+                <CreateAiClonePage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
       </Routes>
       {user && <Chatbot />}

@@ -1,14 +1,29 @@
 import { createClient } from '@supabase/supabase-js';
 import { Content, Webhook, WebhookEvent, Influencer } from '../types';
 
+// Ensure environment variables are available
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseKey) {
-  throw new Error('Missing Supabase environment variables');
-}
+// Create Supabase client with retry logic
+const createSupabaseClient = () => {
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Supabase environment variables are not set');
+  }
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+  const client = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true
+    }
+  });
+
+  return client;
+};
+
+export const supabase = createSupabaseClient();
+
 
 // User Management
 export const createUser = async (email: string, password: string) => {

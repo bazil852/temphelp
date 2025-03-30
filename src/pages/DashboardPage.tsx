@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Table2, Headset, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InfluencerCard } from '../components/InfluencerCard';
+import { CloneCard } from '../components/CloneCard';
 import CreateInfluencerModal from '../components/CreateInfluencerModal';
 import { useInfluencerStore } from '../store/influencerStore';
 import { Influencer } from '../types';
@@ -26,7 +27,8 @@ function DashboardPage() {
   const [filteredInfluencers, setFilteredInfluencers] = useState<{
     pending: Influencer[];
     available: Influencer[];
-  }>({ pending: [], available: [] });
+    clones: Array<any>;
+  }>({ pending: [], available: [], clones: [] });
   
   const statusSteps = [
     { key: 'pending', label: 'Processing' },
@@ -57,11 +59,30 @@ function DashboardPage() {
   useEffect(() => {
     // Filter influencers
     const pending = influencers.filter(inf => ['pending', 'motion-training', 'pending-motion'].includes(inf.status) && !inf.look_id);
-
     const available = influencers.filter(inf => 
       (!inf.status || inf.status == 'completed' ) && !inf.look_id
     );
-    setFilteredInfluencers({ pending, available });
+
+    // Fetch clones
+    const fetchClones = async () => {
+      try {
+        if (!currentUser?.id) return;
+    
+        const { data: clones } = await supabase
+          .from('clones')
+          .select('*')
+          .eq('user_id', currentUser.id) // 🔥 FILTER BY USER ID
+          .not('clone_id', 'is', null)
+          .order('created_at', { ascending: false });
+    
+        setFilteredInfluencers({ pending, available, clones: clones || [] });
+      } catch (error) {
+        console.error('Error fetching clones:', error);
+      }
+    };
+    
+
+    fetchClones();
   }, [influencers]);
 
   const fetchPlanDetails = async () => {
@@ -225,6 +246,16 @@ function DashboardPage() {
               >
                 Pending ({filteredInfluencers.pending.length})
               </button>
+              <button
+                onClick={() => setActiveTab('clones')}
+                className={`px-4 py-2 rounded-lg transition-colors ${
+                  activeTab === 'clones'
+                    ? 'bg-[#c9fffc] text-black'
+                    : 'text-gray-400 hover:text-gray-300'
+                }`}
+              >
+                Clones ({filteredInfluencers.clones.length})
+              </button>
             </div>
           </div>
           <div className="flex gap-2">
@@ -322,7 +353,7 @@ function DashboardPage() {
                 No pending influencers
               </div>
             )
-          ) : (
+          ) : activeTab === 'available' ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[200px]">
               {canCreateAvatar && (
                 <button
@@ -357,6 +388,15 @@ function DashboardPage() {
               {filteredInfluencers.available.map(influencer => (
                 <InfluencerCard key={influencer.id} influencer={influencer} onEdit={handleEditInfluencer} />
               ))}
+            </div>
+          ) : (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredInfluencers.clones
+                  .map((clone) => (
+                    <CloneCard key={clone.id} clone={clone} />
+                  ))}
+              </div>
             </div>
           )}
         </div>

@@ -3,6 +3,7 @@ import { createContent, updateContent, getContents, deleteContent } from '../lib
 import { createVideo, getVideoStatus } from '../lib/heygen';
 import { generateAIScript } from '../lib/openai';
 import { Content } from '../types';
+import { supabase } from '../lib/supabase';
 
 interface ContentStore {
   contents: Record<string, Content[]>;
@@ -94,39 +95,118 @@ export const useContentStore = create<ContentStore>((set, get) => ({
   refreshContents: async (influencerId: string) => {
     const state = get();
     const contents = state.contents[influencerId] || [];
-    const generatingContents = contents.filter(c => c.status === "generating" && c.video_id);
-    console.log("content: ",generatingContents);
+    const generatingContents = contents.filter(c => c.status === "generating");
+    
     for (const content of generatingContents) {
       try {
-        const status = await getVideoStatus(content.video_id!);
-        
-        if (status.status === 'completed' && status.url) {
-          await get().updateContent(influencerId, content.id, {
-            status: 'completed',
-            video_url: status.url
+        // Check if this is a clone video
+        const { data: cloneData } = await supabase
+          .from('clones')
+          .select('id, clone_id')
+          .eq('id', influencerId)
+          .single();
+
+        const isClone = !!cloneData;
+
+        if (isClone) {
+          // Use Captions AI status check
+          const response = await fetch(`${import.meta.env.VITE_AI_CLONE_BACKEND_PROXY}/api/proxy`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              url: 'https://api.captions.ai/api/creator/poll',
+              method: 'POST',
+              body: {
+                operationId: content.video_id
+              }
+            })
           });
-        } else if (status.status === 'failed') {
-          await get().updateContent(influencerId, content.id, {
-            status: 'failed',
-            error: status.error || 'Video generation failed'
-          });
+
+          if (!response.ok) throw new Error('Failed to check video status');
+          const data = await response.json();
+
+          if (data.state === 'COMPLETE' && data.url) {
+            await get().updateContent(influencerId, content.id, {
+              status: 'completed',
+              video_url: data.url
+            });
+          } else if (data.state === 'FAILED') {
+            await get().updateContent(influencerId, content.id, {
+              status: 'failed',
+              error: 'Video generation failed'
+            });
+          }
+        } else {
+          // Use HeyGen status check for regular influencers
+          const status = await getVideoStatus(content.video_id!);
+          
+          if (status.status === 'completed' && status.url) {
+            await get().updateContent(influencerId, content.id, {
+              status: 'completed',
+              video_url: status.url
+            });
+          } else if (status.status === 'failed') {
+            await get().updateContent(influencerId, content.id, {
+              status: 'failed',
+              error: status.error || 'Video generation failed'
+            });
+          }
         }
       } catch (error) {
         console.error('Failed to refresh video status:', error);
       }
-    }
+    } 
   },
 
   generateVideo: async ({ influencerId, templateId, script, title, audioUrl }) => {
     const content = await get().addContent(influencerId, title, script,audioUrl);
 
     try {
-      const videoId = await createVideo({
-        templateId,
-        script,
-        title,
-        audioUrl
-      });
+      // Check if this is a clone by querying the clones table
+      const { data: cloneData } = await supabase
+        .from('clones')
+        .select('id, clone_id')
+        .eq('id', influencerId)
+        .single();
+
+      const isClone = !!cloneData;
+
+      let videoId;
+      
+      if (isClone) {
+        // Create video using Captions AI
+        const response = await fetch(`${import.meta.env.VITE_AI_CLONE_BACKEND_PROXY}/api/proxy`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            url: 'https://api.captions.ai/api/creator/submit',
+            method: 'POST',
+            body: {
+              script: script,
+              creatorName: cloneData.clone_id || templateId,
+              resolution: "fhd"
+            }
+          })
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to create video');
+        }
+
+        const data = await response.json();
+        videoId = data.operationId;
+      } else {
+        videoId = await createVideo({
+          templateId,
+          script,
+          title,
+          audioUrl
+        });
+      }
 
       await get().updateContent(influencerId, content.id, { video_id: videoId });
     } catch (error) {

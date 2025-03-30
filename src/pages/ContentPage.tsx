@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useContentStore } from "../store/contentStore";
 import { useInfluencerStore } from "../store/influencerStore";
 import { usePlanLimits } from '../hooks/usePlanLimits';
+import { supabase } from "../lib/supabase";
 import { 
   Plus, 
   Loader2, 
@@ -19,7 +20,11 @@ import CreateVideoModal from "../components/CreateVideoModal";
 import BulkCreateModal from "../components/BulkCreateModal";
 import WebhookModal from "../components/WebhookModal";
 
-export default function ContentPage() {
+interface ContentPageProps {
+  isClone?: boolean;
+}
+
+export default function ContentPage({ isClone = false }: ContentPageProps) {
   const { id } = useParams();
   const navigate = useNavigate();
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -30,37 +35,68 @@ export default function ContentPage() {
   const { influencers } = useInfluencerStore();
   const { contents, fetchContents, refreshContents, deleteContents } =
     useContentStore();
-  const influencer = influencers.find((inf) => inf.id === id);
+  const [clone, setClone] = useState<any>(null);
+  const entityType = isClone ? 'clone' : 'influencer';
+  
+  useEffect(() => {
+    if (isClone) {
+      // Fetch clone data
+      const fetchClone = async () => {
+        const { data, error } = await supabase
+          .from('clones')
+          .select('*')
+          .eq('id', id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching clone:', error);
+          navigate('/dashboard');
+          return;
+        }
+
+        setClone(data);
+      };
+
+      fetchClone();
+      return; // Don't proceed with the rest of the effect for clones
+    }
+  }, [id, isClone, navigate]);
+  
+  const entity = entityType === 'clone' ? clone : influencers.find((inf) => inf.id === id);
   const canCreateVideo = !limitsLoading && (videoMinutes === -1 || videoMinutesUsed < videoMinutes);
   const minutesRemaining = videoMinutes === -1 ? '∞' : videoMinutes - videoMinutesUsed;
-  const minutesUsageDisplay = videoMinutes === -1 
+  const minutesUsageDisplay = videoMinutes === -1
     ? `${videoMinutesUsed} minutes used (Unlimited)`
     : `${videoMinutesUsed}/${videoMinutes} minutes used`;
 
   useEffect(() => {
-    if (!influencer) {
-      console.log("No influencer found, navigating to dashboard.");
+    // For clones, wait until clone data is loaded
+    if (isClone && !clone) {
+      return;
+    }
+    
+    // For regular influencers, check entity immediately
+    if (!isClone && !entity) {
+      console.log(`No ${entityType} found, navigating to dashboard.`);
       navigate("/dashboard");
       return;
     }
 
-    console.log("Fetching contents for influencer:", id);
+    console.log(`Fetching contents for ${entityType}:`, id);
     fetchContents(id!)
       .then(() => console.log("Fetched contents successfully"))
       .catch((error) => console.error("Error fetching contents:", error));
 
     const interval = setInterval(() => {
-      console.log("Refreshing contents for influencer:", id);
       refreshContents(id!)
         .then(() => console.log("Refreshed contents successfully"))
         .catch((error) => console.error("Error refreshing contents:", error));
     }, 5000);
 
     return () => {
-      console.log("Clearing interval for refreshing contents");
       clearInterval(interval);
     };
-  }, [influencer, id, fetchContents, refreshContents, navigate]);
+  }, [id, isClone, entity, clone, entityType, navigate, fetchContents, refreshContents]);
 
   const handleDeleteSelected = async () => {
     if (selectedContents.length === 0) return;
@@ -73,17 +109,18 @@ export default function ContentPage() {
   };
 
   const toggleSelectAll = () => {
-    if (selectedContents.length === influencerContents.length) {
+    const currentContents = contents[id!] || [];
+    if (selectedContents.length === currentContents.length) {
       setSelectedContents([]);
     } else {
-      setSelectedContents(influencerContents.map((content) => content.id));
+      setSelectedContents(currentContents.map((content) => content.id));
     }
   };
 
   const handleAddCaption = async (videoUrl: string) => {
     console.log(videoUrl)
     try {
-      const response = await fetch('http://localhost:5002/api/add-caption', {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/add-caption`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -102,10 +139,10 @@ export default function ContentPage() {
     }
   };  
 
-  if (!influencer) return null;
+  if (!entity) return null;
 
-  const influencerContents = contents[id!] || [];
-  const videosInQueue = influencerContents.filter(
+  const currentContents = contents[id!] || [];
+  const videosInQueue = currentContents.filter(
     (c) => c.status === "generating"
   ).length;
 
@@ -121,7 +158,7 @@ export default function ContentPage() {
       
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-2xl font-bold text-[#c9fffc]">
-          {influencer.name}'s Content
+          {entity?.name}'s Content
         </h1>
       </div>
       
@@ -143,7 +180,7 @@ export default function ContentPage() {
         >
           <input
             type="checkbox"
-            checked={selectedContents.length === influencerContents.length}
+            checked={selectedContents.length === currentContents.length}
             onChange={toggleSelectAll}
             className="h-4 w-4"
           />
@@ -193,7 +230,7 @@ export default function ContentPage() {
             </div>
           </div>
         )}
-        {influencerContents.map((content) => (
+        {currentContents.map((content) => (
           <div
             key={content.id}
             className="bg-white rounded-lg shadow-lg overflow-hidden relative"
@@ -281,17 +318,18 @@ export default function ContentPage() {
 
       {showCreateForm && (
         <CreateVideoModal
-          influencerId={influencer.id}
-          templateId={influencer.templateId}
-          influencer={influencer}
+          influencerId={entity.id}
+          templateId={entityType === 'clone' ? entity.clone_id : entity.templateId}
+          influencer={entity}
           onClose={() => setShowCreateForm(false)}
+          isClone={isClone}
         />
       )}
 
       {showBulkCreate && (
         <BulkCreateModal
-          influencerId={influencer.id}
-          templateId={influencer.templateId}
+          influencerId={entity.id}
+          templateId={entityType === 'clone' ? entity.template_id : entity.templateId}
           onClose={() => setShowBulkCreate(false)}
         />
       )}

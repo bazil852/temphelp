@@ -2,8 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+
+
+/* Specific cursor styles for interactive elements */
+button:not(:disabled),
+a:not([aria-disabled="true"]),
+input[type="submit"]:not(:disabled),
+select:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: url('https://i.postimg.cc/N0KHGrHv/image.png') 8 8, pointer !important;
+}
+
+/* Text selection cursor */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="search"],
+input[type="tel"],
+input[type="url"],
+textarea {
+  cursor: url('https://i.postimg.cc/N0KHGrHv/image.png') 8 8, text !important;
+}
+
 body {
   background-color: black;
+  cursor: url('./cursor.png'), auto;
 }
 
 /* Override Tailwind's default blue colors with our custom primary color */

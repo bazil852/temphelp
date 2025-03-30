@@ -6,32 +6,99 @@ import { useInfluencerStore } from '../store/influencerStore';
 import { supabase } from '../lib/supabase';
 import { uploadAudioToSupabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
+import { env } from '../lib/env';
 
 interface CreateVideoModalProps {
   influencerId: string;
   templateId: string;
-  influencer: Influencer;
+  influencer: Influencer | any; // Allow clone object
   onClose: () => void;
+  isClone?: boolean;
 }
 
 type ScriptAction = 'write' | 'shorten' | 'longer' | 'engaging';
 
-export default function CreateVideoModal({ influencerId, templateId, influencer, onClose }: CreateVideoModalProps) {
+export default function CreateVideoModal({ influencerId, templateId, influencer, onClose, isClone = false }: CreateVideoModalProps) {
   const [title, setTitle] = useState('');
   const [script, setScript] = useState('');
   const [selectedLook, setSelectedLook] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [inputMethod, setInputMethod] = useState<'upload' | 'url'>('upload');
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState('');
   const { currentUser } = useAuthStore();
   const [showScriptActions, setShowScriptActions] = useState(false);
   const [showLooksDropdown, setShowLooksDropdown] = useState(false);
   const { generateScript, generateVideo } = useContentStore();
+  const [hasGeneratedVoice, setHasGeneratedVoice] = useState(false);
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false);
   const { influencers } = useInfluencerStore();
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [isPreviewingVoice, setIsPreviewingVoice] = useState(false);
   const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   const [currentInfluencer, setCurrentInfluencer] = useState(influencer);
+
+  const handleCloneVideoSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title || !script) return;
+
+    setIsGenerating(true);
+    setError('');
+
+    try {
+      // Calculate video duration from script (rough estimate: 125 words per minute)
+      const wordCount = script.trim().split(/\s+/).length;
+      const durationInMinutes = Math.ceil(wordCount / 125);
+
+      // Update user's video minutes usage
+      const { error: usageError } = await supabase.rpc("increment_user_video_minutes", {
+        p_user_id: currentUser?.id,
+        increment_value: durationInMinutes
+      });
+
+      if (usageError) {
+        throw new Error('Failed to update video minutes usage');
+      }
+
+      // Create video using Captions AI
+      const response = await fetch(`${env.AI_CLONE_BACKEND_PROXY}/api/proxy`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          url: 'https://api.captions.ai/api/creator/submit',
+          method: 'POST',
+          body: {
+            script,
+            creatorName: influencer.clone_id,
+            resolution: "fhd"
+          }
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create video');
+      }
+
+      const data = await response.json();
+      
+      // Create content record
+      await generateVideo({
+        influencerId: influencer.id, // Use clone's actual ID
+        templateId,
+        title,
+        script,
+        videoId: data.videoId // Store Captions AI video ID
+      });
+
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create video');
+    } finally {
+      setIsGenerating(false);
+    }
+  };
 
   // Get all influencers that have this influencer's ID as their look_id
   const looks = [
@@ -74,13 +141,13 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
     };
   };
 
-  const handlePreviewVoice = async () => {
+  const handleGenerateVoice = async () => {
     if (!currentInfluencer.voice_id) {
       setError('No voice ID available');
       return;
     }
 
-    setIsPreviewingVoice(true);
+    setIsGeneratingAudio(true);
     setError('');
 
     try {
@@ -92,7 +159,7 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          text: "This is how I sound",
+          text: script,
           model_id: 'eleven_multilingual_v2'
         })
       });
@@ -106,6 +173,7 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
       const audioBlob = await response.blob();
       const audioUrl = URL.createObjectURL(audioBlob);
       setAudioUrl(audioUrl);
+      setHasGeneratedVoice(true);
 
       // Play the audio
       const audio = new Audio(audioUrl);
@@ -116,7 +184,7 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
       console.error('Error previewing voice:', err);
       setError(err instanceof Error ? err.message : 'Failed to preview voice');
     } finally {
-      setIsPreviewingVoice(false);
+      setIsGeneratingAudio(false);
     }
   };
 
@@ -160,6 +228,42 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !script) return;
+    
+    if (isClone) {
+      setIsGenerating(true);
+      setError('');
+
+      try {
+        // Calculate video duration from script (rough estimate: 125 words per minute)
+        const wordCount = script.trim().split(/\s+/).length;
+        const durationInMinutes = Math.ceil(wordCount / 125);
+
+        // Update user's video minutes usage
+        const { error: usageError } = await supabase.rpc("increment_user_video_minutes", {
+          p_user_id: currentUser?.id,
+          increment_value: durationInMinutes
+        });
+
+        if (usageError) {
+          throw new Error('Failed to update video minutes usage');
+        }
+
+        // Create video using clone_id
+        await generateVideo({
+          influencerId: influencer.id,
+          templateId: influencer.clone_id,
+          title,
+          script
+        });
+
+        onClose();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to create video');
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
 
     setIsGenerating(true);
     setIsGeneratingAudio(true);
@@ -287,7 +391,7 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6 max-h-[calc(100vh-16rem)] overflow-y-auto pr-2">
+        <form onSubmit={isClone ? handleCloneVideoSubmit : handleSubmit} className="space-y-6 max-h-[calc(100vh-16rem)] overflow-y-auto pr-2">
           <div>
             <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
               Video Title
@@ -304,6 +408,8 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
           </div>
 
           <div className="relative">
+           {!isClone && ( 
+            <>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Select Look
             </label>
@@ -318,6 +424,7 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
               </div>
               <ChevronDown className={`h-5 w-5 transition-transform ${showLooksDropdown ? 'rotate-180' : ''}`} />
             </button>
+            </>)}
             
             {showLooksDropdown && (
               <div className="absolute z-50 w-full mt-1 bg-white rounded-lg border border-gray-200 shadow-lg">
@@ -347,27 +454,53 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
           <div>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
               <label htmlFor="script" className="block text-sm font-medium text-gray-700">
-                Script
+                Video Input Method
               </label>
-              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              {/* <div className="flex gap-2">
                 <button
                   type="button"
-                  onClick={handlePreviewVoice}
-                  disabled={isPreviewingVoice || !currentInfluencer.voice_id}
-                  className="px-3 py-2 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 inline-flex items-center justify-center disabled:opacity-50 transition-colors"
+                  onClick={() => setInputMethod('upload')}
+                  className={`px-3 py-2 rounded-lg transition-colors ${
+                    inputMethod === 'upload'
+                      ? 'bg-[#c9fffc] text-black'
+                      : 'bg-gray-800 text-gray-400'
+                  }`}
                 >
-                  {isPreviewingVoice ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Previewing...
-                    </>
-                  ) : (
-                    <>
-                      <Volume2 className="h-4 w-4 mr-2" />
-                      Preview Voice
-                    </>
-                  )}
+                  Upload File
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setInputMethod('url')}
+                  className={`px-3 py-2 rounded-lg transition-colors ${
+                    inputMethod === 'url'
+                      ? 'bg-[#c9fffc] text-black'
+                      : 'bg-gray-800 text-gray-400'
+                  }`}
+                >
+                  Video URL
+                </button>
+              </div> */}
+            </div>
+
+            {inputMethod === 'url' ? (
+              <div className="mb-4">
+                <label htmlFor="videoUrl" className="block text-sm font-medium text-gray-700 mb-2">
+                  Video URL
+                </label>
+                <input
+                  type="url"
+                  id="videoUrl"
+                  value={videoUrl}
+                  onChange={(e) => setVideoUrl(e.target.value)}
+                  placeholder="Enter video URL (e.g., https://example.com/video.mp4)"
+                  className="block w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500 transition-colors"
+                />
+              </div>
+            ) : null}
+
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+              <label htmlFor="script" className="block text-sm font-medium text-gray-700">Script</label>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">              
                 <div className="relative">
                   <button
                     type="button"
@@ -426,8 +559,32 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
             />
           </div>
 
+          {/* Generate Voice Button */}
+          {!isClone && <div className="mb-4">
+            <button
+              type="button"
+              onClick={handleGenerateVoice}
+              disabled={isGeneratingAudio || !script.trim() || !currentInfluencer.voice_id}
+              className="w-full px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+            >
+              {isGeneratingAudio ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating Voice...
+                </>
+              ) : hasGeneratedVoice ? (
+                <>
+                  <Volume2 className="h-4 w-4" />
+                  Regenerate Voice
+                </>
+              ) : (
+                'Generate Voice'
+              )}
+            </button>
+          </div>}
+
           {/* Audio Preview Section */}
-          {audioUrl && (
+          {!isClone && audioUrl && (
             <div className="bg-gray-50 rounded-lg p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <div className={`w-2 h-2 rounded-full ${isPlayingAudio ? 'bg-green-500 animate-pulse' : 'bg-blue-600'}`} />
@@ -456,7 +613,7 @@ export default function CreateVideoModal({ influencerId, templateId, influencer,
             </button>
             <button
               type="submit"
-              disabled={isGenerating || !title || !script}
+              disabled={isGenerating || !title || !script || (!isClone && !hasGeneratedVoice)}
               className="inline-flex items-center px-6 py-3 border-2 border-transparent rounded-lg text-base font-medium text-black bg-blue-600 hover:bg-blue-700 disabled:opacity-50 transition-colors"
             >
               {isGenerating ? (
