@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Upload, Video } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useCloneCreation } from '../hooks/useCloneCreation';
 import { supabase } from '../lib/supabase';
@@ -10,9 +10,11 @@ import { ScriptStep } from '../components/clone/ScriptStep';
 import { VideoStep } from '../components/clone/VideoStep';
 import { ImageUploadStep } from '../components/clone/ImageUploadStep';
 import { CompleteStep } from '../components/clone/CompleteStep';
+import { TeleprompterRecorder } from '../components/clone/TeleprompterRecorder';
 import { useClonePolling } from '../hooks/useClonePolling';
 import { CloneStep, ImageInstruction } from '../types/clone';
 import { env } from '../lib/env';
+import { motion } from 'framer-motion';
 
 const STEPS = [
   { key: 'script', label: 'Script' },
@@ -63,6 +65,7 @@ export default function CreateAiClonePage() {
   const navigate = useNavigate();
   const [cloneId, setCloneId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [recordingMethod, setRecordingMethod] = useState<'upload' | 'teleprompter'>('upload');
 
   const { handleVideoSubmit } = useCloneCreation({
     onStepComplete: (step) => {
@@ -201,18 +204,62 @@ export default function CreateAiClonePage() {
     }
   };
 
-  const handleFileSelect = (file: File) => {
-    setVideoFile(file);
-    setVideoPreviewUrl(URL.createObjectURL(file));
+  const handleTeleprompterRecording = async (blob: Blob) => {
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const timestamp = Date.now();
+      const filePath = `videos/${currentUser?.id}-${timestamp}.webm`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('clones')
+        .upload(filePath, blob);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('clones')
+        .getPublicUrl(filePath);
+
+      await supabase
+        .from('clones')
+        .update({
+          status: 'video_uploaded'
+        })
+        .eq('id', cloneId);
+
+      setUploadedVideoUrl(publicUrl);
+      setProgress(66);
+      setCurrentStep('images');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to upload video');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleImageSelect = (files: FileList) => {
-    const newImages = Array.from(files).slice(0, 5 - images.length);
-    setImages(prev => [...prev, ...newImages]);
+  const handleImageSelect = (index: number) => {
+    setSelectedImageIndex(index);
+  };
+
+  const handleCloneImageUpload = (files: FileList) => {
+    const file = files[0];
+    if (!file) return;
+
+    // Preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreviewUrls(prev => [...prev, reader.result as string]);
+    };
+    reader.readAsDataURL(file);
     
-    // Create preview URLs
-    const newPreviewUrls = newImages.map(file => URL.createObjectURL(file));
-    setImagePreviewUrls(prev => [...prev, ...newPreviewUrls]);
+    setImages(prev => [...prev, file]);
+  };
+
+  const handleVideoUpload = (file: File) => {
+    setVideoFile(file);
+    setVideoPreviewUrl(URL.createObjectURL(file));
   };
 
   const handleImageRemove = (index: number) => {
@@ -300,76 +347,156 @@ export default function CreateAiClonePage() {
     }
   };
 
+  const handleNameSubmit = () => {
+    if (cloneName.trim()) {
+      setProgress(33);
+      setCurrentStep('script');
+    }
+  };
+
+  const handleScriptSubmit = () => {
+    if (script.trim()) {
+      setProgress(66);
+      setCurrentStep('video');
+    }
+  };
+
   return (
-    <div className="container mx-auto px-4 py-8">
-      <button
-        onClick={() => navigate('/dashboard')}
-        className="flex items-center text-gray-600 hover:text-gray-900 mb-8"
-      >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Dashboard
-      </button>
+    <div className="min-h-screen">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center gap-4 mb-8">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => navigate('/dashboard')}
+            className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+          >
+            <ArrowLeft className="w-5 h-5 text-white" />
+          </motion.button>
+          <motion.h1
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="text-2xl font-bold text-white"
+          >
+            Create AI Clone
+          </motion.h1>
+        </div>
 
-      <div className="max-w-2xl mx-auto space-y-8">
-        <h1 className="text-3xl font-bold text-[#c9fffc]">Create AI Clone</h1>
+        {/* Progress Bar */}
+        <div className="mb-8">
+          <ProgressBar currentStep={currentStep} progress={progress} steps={STEPS} />
+        </div>
 
-        <CloneNameInput
-          value={cloneName}
-          onChange={setCloneName}
-        />
+        {/* Main Content */}
+        <div className="space-y-8">
+          {/* Step 1: Name Input */}
+          {currentStep === 'script' && (
+            <CloneNameInput
+              value={cloneName}
+              onChange={setCloneName}
+            />
+          )}
 
+          {/* Step 2: Script Generation */}
+          {currentStep === 'script' && (
+            <ScriptStep
+              script={script}
+              isLoading={isLoading}
+              onGenerateScript={handleGenerateScript}
+            />
+          )}
+
+          {/* Step 3: Video Upload */}
+          {currentStep === 'video' && (
+            <div className="space-y-6">
+              {/* Recording Method Toggle */}
+              <div className="flex gap-4">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setRecordingMethod('upload')}
+                  className={`flex-1 py-3 px-6 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
+                    recordingMethod === 'upload'
+                      ? 'bg-[#4DE0F9]/20 text-[#4DE0F9] border border-[#4DE0F9]/20'
+                      : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                  }`}
+                >
+                  <Upload className="w-5 h-5" />
+                  Upload Video
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => setRecordingMethod('teleprompter')}
+                  className={`flex-1 py-3 px-6 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
+                    recordingMethod === 'teleprompter'
+                      ? 'bg-[#4DE0F9]/20 text-[#4DE0F9] border border-[#4DE0F9]/20'
+                      : 'bg-white/5 text-white/60 hover:bg-white/10 border border-white/10'
+                  }`}
+                >
+                  <Video className="w-5 h-5" />
+                  Record with Teleprompter
+                </motion.button>
+              </div>
+
+              {/* Video Upload or Teleprompter */}
+              {recordingMethod === 'upload' ? (
+                <VideoStep
+                  script={script}
+                  videoPreviewUrl={videoPreviewUrl}
+                  isLoading={isLoading}
+                  onVideoUpload={handleVideoUpload}
+                  onVideoUrlSubmit={handleVideoUrlSubmit}
+                  onSubmit={handleVideoUploadSubmit}
+                />
+              ) : (
+                <TeleprompterRecorder
+                  script={script}
+                  onRecordingComplete={handleTeleprompterRecording}
+                />
+              )}
+            </div>
+          )}
+
+          {/* Step 4: Image Upload */}
+          {currentStep === 'images' && (
+            <ImageUploadStep
+              images={images}
+              imagePreviewUrls={imagePreviewUrls}
+              selectedImageIndex={selectedImageIndex}
+              onImageSelect={handleImageSelect}
+              onImageRemove={handleImageRemove}
+              onSubmit={handleImageSubmit}
+              isLoading={isLoading}
+              imageInstructions={IMAGE_INSTRUCTIONS}
+              onImageUpload={handleCloneImageUpload}
+            />
+          )}
+
+          {/* Step 5: Complete */}
+          {currentStep === 'complete' && (
+            <CompleteStep
+              status={pollStatus}
+              progress={pollProgress}
+              isPolling={isStatusPolling}
+              showWarning={showLeaveWarning}
+              onNavigateBack={() => navigate('/dashboard')}
+            />
+          )}
+        </div>
+
+        {/* Error Message */}
         {error && (
-          <div className="mb-6 p-4 bg-red-100 text-red-700 rounded-lg">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="fixed bottom-8 left-1/2 -translate-x-1/2 bg-red-500/10 border border-red-500/20 text-red-400 px-6 py-3 rounded-full backdrop-blur-sm shadow-lg"
+          >
             {error}
-          </div>
-        )}
-
-        {/* Script Step */}
-        {currentStep === 'script' && (
-          <ScriptStep
-            onGenerateScript={handleGenerateScript}
-            isLoading={isLoading || isStatusPolling}
-            script={script}
-          />
-        )}
-
-        {/* Video Upload Step */}
-        {currentStep === 'video' && (
-          <VideoStep
-            script={script}
-            videoPreviewUrl={videoPreviewUrl}
-            isLoading={isLoading || isStatusPolling}
-            onVideoUpload={handleFileSelect}
-            onVideoUrlSubmit={handleVideoUrlSubmit}
-            // onVideoUrlSubmit={handleVideoUrlSubmit}
-            onSubmit={handleVideoUploadSubmit}
-          />
-        )}
-
-        {/* Image Upload Step */}
-        {currentStep === 'images' && (
-          <ImageUploadStep
-            images={images}
-            imagePreviewUrls={imagePreviewUrls}
-            selectedImageIndex={selectedImageIndex}
-            isLoading={isLoading || isStatusPolling}
-            imageInstructions={IMAGE_INSTRUCTIONS}
-            onImageUpload={handleImageSelect}
-            onImageRemove={handleImageRemove}
-            onImageSelect={setSelectedImageIndex}
-            onSubmit={handleImageSubmit}
-          />
-        )}
-
-        {/* Complete Step */}
-        {currentStep === 'complete' && (
-          <CompleteStep
-            status={pollStatus}
-            progress={pollProgress}
-            isPolling={isStatusPolling}
-            showWarning={showLeaveWarning}
-            onNavigateBack={() => navigate('/dashboard')}
-          />
+          </motion.div>
         )}
       </div>
     </div>

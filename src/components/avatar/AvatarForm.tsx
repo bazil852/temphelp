@@ -1,7 +1,8 @@
 import React from 'react';
+import { motion } from 'framer-motion';
 import { ChevronDown } from 'lucide-react';
 // import { VoiceDetails } from './VoiceDetails';
-import { AppearanceField } from './AppearenceField';
+import { AppearanceField } from './AppearanceField';
 import {
   AGE_OPTIONS,
   GENDER_OPTIONS,
@@ -14,7 +15,7 @@ import {
 
 interface AvatarFormProps {
   formData: AvatarFormData;
-  onFormDataChange: (data: Partial<AvatarFormData>) => void;
+  onFormDataChange: (updates: Partial<AvatarFormData>) => void;
   showAdvanced: boolean;
   onToggleAdvanced: () => void;
   isSubmitting: boolean;
@@ -34,12 +35,12 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
   return (
     <form onSubmit={onSubmit} className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700">Name</label>
+        <label className="block text-sm font-medium text-white/80 mb-2">Name</label>
         <input
           type="text"
           value={formData.name}
           onChange={(e) => onFormDataChange({ name: e.target.value })}
-          className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2 focus:border-[#c9fffc] focus:ring-[#c9fffc] transition-colors"
+          className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
           required
           placeholder="Enter avatar name"
         />
@@ -47,11 +48,11 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700">Age</label>
+          <label className="block text-sm font-medium text-white/80 mb-2">Age</label>
           <select
             value={formData.age}
             onChange={(e) => onFormDataChange({ age: e.target.value as any })}
-            className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2 focus:border-[#c9fffc] focus:ring-[#c9fffc] transition-colors"
+            className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40"
             required
           >
             <option value="">Select age range</option>
@@ -62,11 +63,11 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Gender</label>
+          <label className="block text-sm font-medium text-white/80 mb-2">Gender</label>
           <select
             value={formData.gender}
             onChange={(e) => onFormDataChange({ gender: e.target.value as any })}
-            className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2 focus:border-[#c9fffc] focus:ring-[#c9fffc] transition-colors"
+            className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40"
             required
           >
             <option value="">Select gender</option>
@@ -77,11 +78,11 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Ethnicity</label>
+          <label className="block text-sm font-medium text-white/80 mb-2">Ethnicity</label>
           <select
             value={formData.ethnicity}
             onChange={(e) => onFormDataChange({ ethnicity: e.target.value as any })}
-            className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2 focus:border-[#c9fffc] focus:ring-[#c9fffc] transition-colors"
+            className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40"
             required
           >
             <option value="">Select ethnicity</option>
@@ -92,11 +93,11 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Orientation</label>
+          <label className="block text-sm font-medium text-white/80 mb-2">Orientation</label>
           <select
             value={formData.orientation}
             onChange={(e) => onFormDataChange({ orientation: e.target.value as any })}
-            className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2 focus:border-[#c9fffc] focus:ring-[#c9fffc] transition-colors"
+            className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40"
             required
           >
             <option value="">Select orientation</option>
@@ -107,11 +108,11 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Pose</label>
+          <label className="block text-sm font-medium text-white/80 mb-2">Pose</label>
           <select
             value={formData.pose}
             onChange={(e) => onFormDataChange({ pose: e.target.value as any })}
-            className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2 focus:border-[#c9fffc] focus:ring-[#c9fffc] transition-colors"
+            className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40"
             required
           >
             <option value="">Select pose</option>
@@ -122,11 +123,11 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700">Style</label>
+          <label className="block text-sm font-medium text-white/80 mb-2">Style</label>
           <select
             value={formData.style}
             onChange={(e) => onFormDataChange({ style: e.target.value as any })}
-            className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2 focus:border-[#c9fffc] focus:ring-[#c9fffc] transition-colors"
+            className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40"
             required
           >
             <option value="">Select style</option>
@@ -159,24 +160,28 @@ export const AvatarForm: React.FC<AvatarFormProps> = ({
 
       <AppearanceField
         value={formData.appearance}
-        onChange={(value) => onFormDataChange({ appearance: value })}
+        onChange={(value: string) => onFormDataChange({ appearance: value })}
       />
 
       <div className="flex justify-end gap-3 pt-4">
-        <button
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           type="button"
           onClick={onCancel}
-          className="px-6 py-3 border-2 border-gray-700 rounded-lg text-base font-medium text-gray-300 hover:bg-gray-800 transition-colors"
+          className="px-6 py-2 rounded-full font-medium text-white/80 bg-white/5 hover:bg-white/10 border border-white/10 transition-all duration-200"
         >
           Cancel
-        </button>
-        <button
+        </motion.button>
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           type="submit"
           disabled={isSubmitting}
-          className="px-6 py-3 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors font-medium"
+          className="px-6 py-2 rounded-full font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isSubmitting ? 'Generating...' : 'Generate Avatar'}
-        </button>
+        </motion.button>
       </div>
     </form>
   );

@@ -11,10 +11,20 @@ interface ContentStore {
   updateContent: (influencerId: string, contentId: string, updates: Partial<Content>) => Promise<void>;
   deleteContents: (influencerId: string, contentIds: string[]) => Promise<void>;
   getInfluencerContents: (influencerId: string) => Content[];
-  generateVideo: (params: { influencerId: string; templateId: string; script: string; title: string; audioUrl?: string }) => Promise<void>;
+  generateVideo: (params: { influencerId: string; templateId: string; script: string; title: string; audioUrl?: string; videoId?: string; durationInMinutes?: number }) => Promise<void>;
   generateScript: (prompt: string) => Promise<string>;
   refreshContents: (influencerId: string) => Promise<void>;
   fetchContents: (influencerId: string) => Promise<void>;
+}
+
+interface GenerateVideoParams {
+  influencerId: string;
+  templateId: string;
+  script: string;
+  title: string;
+  audioUrl?: string;
+  videoId?: string;
+  durationInMinutes?: number;
 }
 
 export const useContentStore = create<ContentStore>((set, get) => ({
@@ -160,7 +170,7 @@ export const useContentStore = create<ContentStore>((set, get) => ({
     } 
   },
 
-  generateVideo: async ({ influencerId, templateId, script, title, audioUrl }) => {
+  generateVideo: async ({ influencerId, templateId, script, title, audioUrl, videoId, durationInMinutes }: GenerateVideoParams) => {
     const content = await get().addContent(influencerId, title, script,audioUrl);
 
     try {

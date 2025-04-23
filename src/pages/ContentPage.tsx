@@ -19,6 +19,7 @@ import {
 import CreateVideoModal from "../components/CreateVideoModal";
 import BulkCreateModal from "../components/BulkCreateModal";
 import WebhookModal from "../components/WebhookModal";
+import VideoCard from "../components/VideoCard";
 
 interface ContentPageProps {
   isClone?: boolean;
@@ -32,10 +33,11 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
   const [showWebhooks, setShowWebhooks] = useState(false);
   const { videoMinutes, videoMinutesUsed, loading: limitsLoading } = usePlanLimits();
   const [selectedContents, setSelectedContents] = useState<string[]>([]);
-  const { influencers } = useInfluencerStore();
+  const { influencers, fetchInfluencers } = useInfluencerStore();
   const { contents, fetchContents, refreshContents, deleteContents } =
     useContentStore();
   const [clone, setClone] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const entityType = isClone ? 'clone' : 'influencer';
   
   useEffect(() => {
@@ -55,12 +57,25 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
         }
 
         setClone(data);
+        setIsLoading(false);
       };
 
       fetchClone();
       return; // Don't proceed with the rest of the effect for clones
     }
   }, [id, isClone, navigate]);
+
+  useEffect(() => {
+    // For regular influencers, fetch influencers first
+    if (!isClone) {
+      fetchInfluencers().then(() => {
+        setIsLoading(false);
+      }).catch((error) => {
+        console.error('Error fetching influencers:', error);
+        setIsLoading(false);
+      });
+    }
+  }, [isClone, fetchInfluencers]);
   
   const entity = entityType === 'clone' ? clone : influencers.find((inf) => inf.id === id);
   const canCreateVideo = !limitsLoading && (videoMinutes === -1 || videoMinutesUsed < videoMinutes);
@@ -77,8 +92,6 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
     
     // For regular influencers, check entity immediately
     if (!isClone && !entity) {
-      console.log(`No ${entityType} found, navigating to dashboard.`);
-      navigate("/dashboard");
       return;
     }
 
@@ -139,7 +152,38 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
     }
   };  
 
-  if (!entity) return null;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-[#c9fffc]" />
+      </div>
+    );
+  }
+
+  if (!entity) {
+    return (
+      <div className="p-6">
+        <button
+          onClick={() => navigate("/dashboard")}
+          className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </button>
+        <div className="flex flex-col items-center justify-center min-h-[50vh] text-center">
+          <AlertCircle className="h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-2xl font-bold text-gray-200 mb-2">Influencer Not Found</h2>
+          <p className="text-gray-400 mb-4">The influencer you're looking for doesn't exist or has been deleted.</p>
+          <button
+            onClick={() => navigate("/dashboard")}
+            className="px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] transition-colors"
+          >
+            Return to Dashboard
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   const currentContents = contents[id!] || [];
   const videosInQueue = currentContents.filter(
@@ -203,7 +247,7 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
         {canCreateVideo && (
           <button
             onClick={() => setShowCreateForm(true)}
@@ -231,88 +275,19 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
           </div>
         )}
         {currentContents.map((content) => (
-          <div
+          <VideoCard
             key={content.id}
-            className="bg-white rounded-lg shadow-lg overflow-hidden relative"
-          >
-            <div className="flex justify-between items-center p-4 border-b border-gray-700">
-              <h3 className="text-xl font-semibold text-gray-200">
-                {content.title || "Untitled"}
-              </h3>
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={selectedContents.includes(content.id)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedContents([...selectedContents, content.id]);
-                    } else {
-                      setSelectedContents(
-                        selectedContents.filter((id) => id !== content.id)
-                      );
-                    }
-                  }}
-                  className="h-5 w-5"
-                />
-              </div>
-            </div>
-            <div className="grid grid-cols-2 gap-4 p-4">
-              {/* Video/Status Section */}
-              <div className="relative">
-                {content.status === "completed" && content.video_url ? (
-                  <>
-                    <div className="absolute top-2 right-2 z-10 flex gap-2">
-                      <a
-                        href={content.video_url}
-                        download
-                        className="p-2 bg-gray-800 bg-opacity-75 rounded-full hover:bg-opacity-100 transition-all"
-                        title="Download Video"
-                      >
-                        <Download className="h-4 w-4 text-white" />
-                      </a>
-                      <button
-                        onClick={() => {
-                          if (content.video_url) {
-                            handleAddCaption(content.video_url);
-                          }
-                        }}
-                        className="p-2 bg-gray-800 bg-opacity-75 rounded-full hover:bg-opacity-100 transition-all"
-                        title="Add Captions"
-                      >
-                        <Subtitles className="h-4 w-4 text-white" />
-                      </button>
-                    </div>
-                    <video
-                      src={content.video_url}
-                      controls
-                      className="w-full rounded-lg aspect-[9/16] object-cover shadow-lg"
-                    >
-                      Your browser does not support the video tag.
-                    </video>
-                  </>
-                ) : content.status === "generating" ? (
-                  <div className="flex items-center justify-center h-full text-blue-400">
-                    <Loader2 className="animate-spin mr-2" size={24} />
-                    <span>Generating video...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center justify-center h-full text-red-400">
-                    <AlertCircle className="mr-2" size={24} />
-                    <span>{content.error || "Generation failed"}</span>
-                  </div>
-                )}
-              </div>
-              {/* Script Section */}
-              <div className="flex flex-col h-full">
-                <h4 className="text-gray-400 font-medium mb-2 text-sm">Script</h4>
-                <div className="bg-gray-800 rounded-lg p-4 overflow-y-auto custom-scrollbar" style={{ height: '300px' }}>
-                  <p className="text-gray-300 text-sm whitespace-pre-wrap">
-                    {content.script || "No script available"}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+            content={content}
+            isSelected={selectedContents.includes(content.id)}
+            onSelect={(id) => {
+              if (selectedContents.includes(id)) {
+                setSelectedContents(selectedContents.filter((contentId) => contentId !== id));
+              } else {
+                setSelectedContents([...selectedContents, id]);
+              }
+            }}
+            onAddCaption={handleAddCaption}
+          />
         ))}
       </div>
 

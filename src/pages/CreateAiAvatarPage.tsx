@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { AvatarForm } from '../components/avatar/AvatarForm';
@@ -202,59 +203,78 @@ export default function CreateAiAvatarPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <button
-        onClick={() => navigate('/dashboard')}
-        className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+    <div className="container mx-auto px-6 sm:px-12 py-8">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="max-w-7xl mx-auto"
       >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Dashboard
-      </button>
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center text-white/60 hover:text-white mb-8"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </motion.button>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Form Section */}
-        <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6">
-          <h1 className="text-2xl font-bold text-gray-900 mb-8">Create AI Avatar</h1>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Form Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
+          >
+            <h1 className="text-2xl font-bold text-white mb-8">Create AI Avatar</h1>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-              {error}
-            </div>
-          )}
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
+                {error}
+              </div>
+            )}
 
-          <AvatarForm
-            formData={formData}
-            onFormDataChange={handleFormDataChange}
-            showAdvanced={showAdvanced}
-            onToggleAdvanced={() => setShowAdvanced(!showAdvanced)}
-            isSubmitting={isSubmitting}
-            onSubmit={handleSubmit}
-            onCancel={() => navigate('/dashboard')}
-          />
+            <AvatarForm
+              formData={formData}
+              onFormDataChange={handleFormDataChange}
+              showAdvanced={showAdvanced}
+              onToggleAdvanced={() => setShowAdvanced(!showAdvanced)}
+              isSubmitting={isSubmitting}
+              onSubmit={handleSubmit}
+              onCancel={() => navigate('/dashboard')}
+            />
+          </motion.div>
+
+          {/* Generated Images Section */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
+          >
+            <h2 className="text-xl font-bold text-white mb-6">Generated Avatars</h2>
+            
+            <GeneratedAvatarsGrid
+              isPolling={isPolling}
+              generatedImages={generatedImages}
+              selectedImageIndex={selectedImageIndex}
+              onSelectImage={setSelectedImageIndex}
+              onExpandImage={setExpandedImageUrl}
+              isCreatingAvatar={isCreatingAvatar}
+              onCreateAvatar={handleCreateAvatar}
+            />
+          </motion.div>
         </div>
 
-        {/* Generated Images Section */}
-        <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-6">Generated Avatars</h2>
-          
-          <GeneratedAvatarsGrid
-            isPolling={isPolling}
-            generatedImages={generatedImages}
-            selectedImageIndex={selectedImageIndex}
-            onSelectImage={setSelectedImageIndex}
-            onExpandImage={setExpandedImageUrl}
-            isCreatingAvatar={isCreatingAvatar}
-            onCreateAvatar={handleCreateAvatar}
+        {expandedImageUrl && (
+          <ImageModal
+            imageUrl={expandedImageUrl}
+            onClose={() => setExpandedImageUrl(null)}
           />
-        </div>
-      </div>
-
-      {expandedImageUrl && (
-        <ImageModal
-          imageUrl={expandedImageUrl}
-          onClose={() => setExpandedImageUrl(null)}
-        />
-      )}
+        )}
+      </motion.div>
     </div>
   );
 }

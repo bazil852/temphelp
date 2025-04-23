@@ -1,4 +1,5 @@
 import React from 'react';
+import { useInView } from 'framer-motion';
 import { Video, Mic } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import CreateVideoModal from './CreateVideoModal';
@@ -16,48 +17,78 @@ interface CloneCardProps {
 export const CloneCard: React.FC<CloneCardProps> = ({ clone }) => {
   const [showCreateModal, setShowCreateModal] = React.useState(false);
   const navigate = useNavigate();
+  const cardRef = React.useRef(null);
+  const isInView = useInView(cardRef, {
+    once: true,
+    margin: "0px 0px -10% 0px"
+  });
+  const [isHovered, setIsHovered] = React.useState(false);
 
   const handleVideoClick = () => {
     navigate(`/clone-content/${clone.id}`);
   };
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300">
-      <div className="p-4">
-        <div className="aspect-square overflow-hidden rounded-xl border-2 border-gray-700">
+    <>
+      <div
+        ref={cardRef}
+        style={{
+          opacity: isInView ? 1 : 0,
+          transform: isInView ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.95)',
+          transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
+        }}
+        className="relative group bg-white/5 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden transition-all duration-200"
+      >
+        <div 
+          className="group relative overflow-hidden rounded-xl aspect-[2/3] bg-[#0D1117]"
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+          onMouseMove={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const x = ((e.clientX - rect.left) / rect.width) * 100;
+            const y = ((e.clientY - rect.top) / rect.height) * 100;
+            e.currentTarget.style.setProperty('--mouse-x', `${x}%`);
+            e.currentTarget.style.setProperty('--mouse-y', `${y}%`);
+          }}
+        >
+          {/* Full-bleed Background Image */}
           {clone.image_preview ? (
             <img
               src={clone.image_preview}
               alt={clone.name}
-              className="w-full h-full object-contain bg-gray-800"
+              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
             />
           ) : (
-            <div className="w-full h-full bg-gray-800 flex items-center justify-center">
+            <div className="absolute inset-0 bg-gradient-to-b from-gray-800 to-gray-900 flex items-center justify-center">
               <span className="text-gray-400 text-lg">No Preview</span>
             </div>
           )}
-        </div>
-      </div>
 
-      <div className="p-4 pt-0">
-        <h3 className="text-xl font-bold text-white mb-4">{clone.name}</h3>
-        <div className="flex gap-2">
-          <button
-            onClick={handleVideoClick}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] transition-colors"
-            title="View videos"
-          >
-            <Video className="h-4 w-4" />
-            <span>Videos</span>
-          </button>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] transition-colors"
-            title="Record new video"
-          >
-            <Mic className="h-4 w-4" />
-            <span>Record</span>
-          </button>
+          {/* Gradient Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300" />
+
+          {/* Content */}
+          <div className="absolute inset-0 p-4 flex flex-col justify-end">
+            <h3 className="text-xl font-bold text-white mb-4">{clone.name}</h3>
+            <div className="flex gap-2">
+              <button
+                onClick={handleVideoClick}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-all duration-200"
+                title="View videos"
+              >
+                <Video className="h-4 w-4" />
+                <span>Videos</span>
+              </button>
+              <button
+                onClick={() => setShowCreateModal(true)}
+                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-all duration-200"
+                title="Record new video"
+              >
+                <Mic className="h-4 w-4" />
+                <span>Record</span>
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       
@@ -70,6 +101,6 @@ export const CloneCard: React.FC<CloneCardProps> = ({ clone }) => {
           isClone={true}
         />
       )}
-    </div>
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import OpenAI from 'openai';
 import { useState, useRef, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface HighlightInfo {
   selector: string;
@@ -519,159 +520,219 @@ export default function Chatbot() {
   return (
     <>
       {!isOpen && (
-        <button
+        <motion.button
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={() => setIsOpen(true)}
           data-tour="chatbot"
-          className="fixed bottom-4 right-4 bg-[#c9fffc] text-black rounded-full p-3 shadow-lg hover:bg-[#a0fcf9] transition-colors"
+          className="fixed bottom-4 right-4 bg-[#4DE0F9]/20 text-white rounded-full p-3 shadow-[0_0_20px_rgba(77,224,249,0.3)] hover:shadow-[0_0_30px_rgba(77,224,249,0.4)] transition-all duration-200 border border-white/20 backdrop-blur-sm"
         >
           <MessageSquare className="h-6 w-6" />
-        </button>
+        </motion.button>
       )}
 
-      {isOpen && (
-        <div className={`fixed bottom-4 right-4 w-96 bg-white rounded-lg shadow-xl z-50 ${activeHighlight ? 'hidden' : ''}`}>
-          <div className="flex justify-between items-center p-4 bg-[#c9fffc] rounded-t-lg">
-            <h3 className="font-medium text-black">Casper - AI Support</h3>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="text-black hover:text-gray-700"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          <div className="h-96 overflow-y-auto p-4 space-y-4">
-            {messages.map((message, index) => (
-              <div
-                key={index}
-                className={`flex ${
-                  message.role === 'user' ? 'justify-end' : 'justify-start'
-                }`}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className={`fixed bottom-4 right-4 w-96 bg-white/5 backdrop-blur-xl rounded-2xl shadow-[0_0_30px_rgba(77,224,249,0.2)] z-50 border border-white/20 hover:border-[#4DE0F9]/40 transition-all duration-200 ${activeHighlight ? 'hidden' : ''}`}
+          >
+            <div className="flex justify-between items-center p-4 bg-[#4DE0F9]/20 rounded-t-2xl border-b border-white/10">
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <div className="h-2 w-2 rounded-full bg-[#4DE0F9] animate-pulse" />
+                  <div className="absolute inset-0 h-2 w-2 rounded-full bg-[#4DE0F9] animate-ping" />
+                </div>
+                <h3 className="font-medium text-white">Casper - AI Support</h3>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={() => setIsOpen(false)}
+                className="text-white/80 hover:text-white transition-colors"
               >
-                {message.role === 'assistant' && (
+                <X className="h-5 w-5" />
+              </motion.button>
+            </div>
+
+            <div className="h-96 overflow-y-auto p-4 space-y-4 custom-scrollbar">
+              {messages.map((message, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.1 }}
+                  className={`flex ${
+                    message.role === 'user' ? 'justify-end' : 'justify-start'
+                  }`}
+                >
+                  {message.role === 'assistant' && (
+                    <motion.div
+                      whileHover={{ scale: 1.1 }}
+                      className="relative"
+                    >
+                      <img
+                        src="https://i.ibb.co/BgtVKG9/LIMITED-TIME-FREE-ACCESS-5.png"
+                        alt="AI Assistant"
+                        className="h-8 w-8 rounded-full mr-2 object-cover ring-2 ring-[#4DE0F9]/20"
+                      />
+                      <div className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-[#4DE0F9] animate-pulse" />
+                    </motion.div>
+                  )}
+                  <motion.div
+                    whileHover={{ scale: 1.02 }}
+                    className={`max-w-[80%] rounded-2xl p-3 whitespace-pre-wrap ${
+                      message.role === 'user'
+                        ? 'bg-[#4DE0F9]/20 text-white'
+                        : 'bg-white/10 text-white border border-white/10'
+                    }`}
+                  >
+                    {message.content}
+                  </motion.div>
+                </motion.div>
+              ))}
+
+              {showNavigationButton && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex justify-center my-4"
+                >
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={handleNavigationClick}
+                    className="flex items-center gap-2 px-4 py-2 bg-[#4DE0F9]/20 text-white rounded-full hover:bg-[#4DE0F9]/30 transition-all duration-200 border border-white/10"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                    Show me how
+                  </motion.button>
+                </motion.div>
+              )}
+
+              {messages.length === 1 && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="grid grid-cols-2 gap-2 mt-4"
+                >
+                  {conversationStarters.map((starter, index) => (
+                    <motion.button
+                      key={index}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={() => handleStarterClick(starter.prompt)}
+                      className="flex items-center gap-2 p-3 text-sm text-white bg-white/10 rounded-xl hover:bg-white/20 transition-all duration-200 border border-white/10"
+                    >
+                      {starter.icon}
+                      <span>{starter.text}</span>
+                    </motion.button>
+                  ))}
+                </motion.div>
+              )}
+
+              {isLoading && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex justify-start"
+                >
                   <img
                     src="https://i.ibb.co/BgtVKG9/LIMITED-TIME-FREE-ACCESS-5.png"
                     alt="AI Assistant"
-                    className="h-8 w-8 rounded-full mr-2 object-cover"
+                    className="h-8 w-8 rounded-full mr-2 object-cover ring-2 ring-[#4DE0F9]/20"
                   />
-                )}
-                <div
-                  className={`max-w-[80%] rounded-lg p-3 whitespace-pre-wrap ${
-                    message.role === 'user'
-                      ? 'bg-[#c9fffc] text-black'
-                      : 'bg-gray-100 text-gray-900'
-                  }`}
-                >
-                  {message.content}
+                  <div className="bg-white/10 rounded-xl p-3 border border-white/10">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#4DE0F9]" />
+                  </div>
+                </motion.div>
+              )}
+              <div ref={messagesEndRef} />
+            </div>
+
+            {showTicketButton && (
+              <div className="px-4 py-2 border-t border-white/10">
+                <div className="flex flex-col gap-2">
+                  {showBackButton && (
+                    <motion.button
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      onClick={handleBackToChat}
+                      className="w-full py-2 bg-white/10 text-white rounded-xl hover:bg-white/20 transition-all duration-200 border border-white/10"
+                    >
+                      Back to Chat
+                    </motion.button>
+                  )}
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={handleCreateTicket}
+                    disabled={isCreatingTicket}
+                    className="w-full py-2 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 transition-all duration-200 border border-red-500/20 flex items-center justify-center gap-2 mt-2"
+                  >
+                    {isCreatingTicket ? (
+                      <>
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        Creating Ticket...
+                      </>
+                    ) : (
+                      <>
+                        <Bug className="h-5 w-5" />
+                        {isBugReport ? 'Submit Bug Report' : 'Submit Feature Request'}
+                      </>
+                    )}
+                  </motion.button>
                 </div>
               </div>
-            ))}
-
-            {showNavigationButton && (
-              <div className="flex justify-center my-4">
-                <button
-                  onClick={handleNavigationClick}
-                  className="flex items-center gap-2 px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] transition-colors"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                  Show me how
-                </button>
-              </div>
             )}
 
-            {messages.length === 1 && (
-              <div className="grid grid-cols-2 gap-2 mt-4">
-                {conversationStarters.map((starter, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handleStarterClick(starter.prompt)}
-                    className="flex items-center gap-2 p-3 text-sm text-gray-700 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
-                  >
-                    {starter.icon}
-                    <span>{starter.text}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {isLoading && (
-              <div className="flex justify-start">
-                <img
-                  src="https://i.ibb.co/BgtVKG9/LIMITED-TIME-FREE-ACCESS-5.png"
-                  alt="AI Assistant"
-                  className="h-8 w-8 rounded-full mr-2 object-cover"
+            <form onSubmit={handleSubmit} className="border-t border-white/10 p-4">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder={
+                    isBugReport ? "Describe your bug here..." :
+                    isGeneralQuestion ? "Explain your feature here..." :
+                    "Ask me anything about the app..."
+                  }
+                  className="flex-1 bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-white/40 transition-all duration-200"
                 />
-                <div className="bg-gray-100 rounded-lg p-3">
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                </div>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {showTicketButton && (
-            <div className="px-4 py-2 border-t border-gray-100">
-              <div className="flex flex-col gap-2">
-                {showBackButton && (
-                  <button
-                    onClick={handleBackToChat}
-                    className="w-full py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                {!isBugReport && !isGeneralQuestion && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="submit"
+                    disabled={isLoading || !input.trim()}
+                    className="bg-[#4DE0F9]/20 text-white rounded-full p-2 hover:bg-[#4DE0F9]/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 border border-white/10"
                   >
-                    Back to Chat
-                  </button>
+                    <Send className="h-5 w-5" />
+                  </motion.button>
                 )}
-              <button
-                onClick={handleCreateTicket}
-                disabled={isCreatingTicket}
-                className="w-full py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-2"
-                className="w-full py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors flex items-center justify-center gap-2 mt-2"
-              >
-                {isCreatingTicket ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Creating Ticket...
-                  </>
-                ) : (
-                  <>
-                    <Bug className="h-5 w-5" />
-                    {isBugReport ? 'Submit Bug Report' : 'Submit Feature Request'}
-                  </>
-                )}
-              </button>
               </div>
-            </div>
-          )}
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          <form onSubmit={handleSubmit} className="border-t p-4">
-            <div className="flex space-x-2">
-              <input
-                type="text"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder={
-                  isBugReport ? "Describe your bug here..." :
-                  isGeneralQuestion ? "Explain your feature here..." :
-                  "Ask me anything about the app..."
-                }
-                className="flex-1 border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#c9fffc]"
-              />
-              {!isBugReport && !isGeneralQuestion && <button
-                type="submit"
-                disabled={isLoading || !input.trim()}
-                className="bg-[#c9fffc] text-black rounded-lg px-4 py-2 hover:bg-[#a0fcf9] disabled:opacity-50 disabled:cursor-not-allowed"
-              
-              >
-                <Send className="h-5 w-5" />
-              </button>}
-            </div>
-          </form>
-        </div>
-      
-      )}
       {activeHighlight && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 z-[59]">
-          <div 
-            className="fixed bg-white rounded-lg p-6 shadow-lg z-[61] max-w-md w-full text-center"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[59]"
+        >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed bg-white/5 backdrop-blur-xl rounded-2xl p-6 shadow-[0_0_30px_rgba(77,224,249,0.2)] z-[61] max-w-md w-full text-center border border-white/20"
             style={{
               left: '50%',
               top: '50%',
@@ -679,19 +740,21 @@ export default function Chatbot() {
             }}
           >
             <div className="flex flex-col items-center gap-6">
-              <p className="text-gray-900 text-lg">{activeHighlight.message}</p>
-              <button
+              <p className="text-white text-lg">{activeHighlight.message}</p>
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
                 onClick={() => {
                   setActiveHighlight(null);
                   setIsOpen(true);
                 }}
-                className="px-6 py-3 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] transition-colors font-medium"
+                className="px-6 py-3 bg-[#4DE0F9]/20 text-white rounded-full hover:bg-[#4DE0F9]/30 transition-all duration-200 border border-white/10"
               >
                 Got it!
-              </button>
+              </motion.button>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </>
   );

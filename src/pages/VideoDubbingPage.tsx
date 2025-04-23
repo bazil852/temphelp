@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Loader2, Download, Languages } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
@@ -189,9 +190,9 @@ const LANGUAGE_OPTIONS = [
 ];
 
 export default function VideoDubbingPage() {
-  const { videoMinutes, videoMinutesUsed } = usePlanLimits();
   const { currentUser } = useAuthStore();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [videoPreviewUrl, setVideoPreviewUrl] = useState<string | null>(null);
   const [sourceLang, setSourceLang] = useState('English');
   const [targetLang, setTargetLang] = useState('Chinese');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -202,14 +203,17 @@ export default function VideoDubbingPage() {
   const [isDownloading, setIsDownloading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Cleanup blob URL when component unmounts or new URL is created
+  // Cleanup blob URLs when component unmounts or new URLs are created
   useEffect(() => {
     return () => {
+      if (videoPreviewUrl) {
+        URL.revokeObjectURL(videoPreviewUrl);
+      }
       if (downloadUrl) {
         URL.revokeObjectURL(downloadUrl);
       }
     };
-  }, [downloadUrl]);
+  }, [videoPreviewUrl, downloadUrl]);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -222,6 +226,12 @@ export default function VideoDubbingPage() {
       return;
     }
 
+    // Create preview URL
+    if (videoPreviewUrl) {
+      URL.revokeObjectURL(videoPreviewUrl);
+    }
+    const previewUrl = URL.createObjectURL(file);
+    setVideoPreviewUrl(previewUrl);
     setSelectedFile(file);
     setError('');
     setDownloadUrl(null);
@@ -297,7 +307,7 @@ export default function VideoDubbingPage() {
     }
   };
 
-  const pollTranslationStatus = async (id: string) => {
+  const pollTranslationStatus = async (id: string, apiKey: string) => {
     try {
       const response = await fetch(
         `${import.meta.env.VITE_AI_CLONE_BACKEND_PROXY}/api/proxy/heygen`,
@@ -309,6 +319,9 @@ export default function VideoDubbingPage() {
           body: JSON.stringify({
             url: `https://api.heygen.com/v2/video_translate/${id}`,
             method: 'GET',
+            headers: {
+              'x-api-key': apiKey
+            }
           }),
         }
       );
@@ -330,7 +343,7 @@ export default function VideoDubbingPage() {
         setIsProcessing(false);
       } else {
         // Continue polling after 5 seconds
-        setTimeout(() => pollTranslationStatus(id), 5000);
+        setTimeout(() => pollTranslationStatus(id, apiKey), 5000);
       }
     } catch (err) {
       console.error(err);
@@ -342,66 +355,109 @@ export default function VideoDubbingPage() {
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="max-w-2xl mx-auto space-y-8">
-        <div className="flex justify-between items-center">
-          <h1 className="text-3xl font-bold text-[#c9fffc]">Video Dubbing</h1>
-          <div className="text-gray-400">
-            {videoMinutes === -1 ? 
-              'Unlimited minutes' : 
-              `${videoMinutesUsed}/${videoMinutes} minutes used`}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="max-w-4xl mx-auto"
+      >
+        <div className="bg-black/40 backdrop-blur-xl border border-white/10 rounded-2xl shadow-xl p-6 sm:p-8">
+          <div className="text-center mb-8">
+            <h1 className="text-2xl font-bold text-white mb-2">Video Dubbing</h1>
+            <p className="text-white/60">
+              Translate your videos into multiple languages with AI
+            </p>
           </div>
-        </div>
 
-        {error && (
-          <div className="p-4 bg-red-100 text-red-700 rounded-lg">
-            {error}
-          </div>
-        )}
-
-        <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 space-y-6">
-          {/* File Upload */}
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">
-              Upload Video
-            </label>
-            <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-700 border-dashed rounded-lg">
-              <div className="space-y-1 text-center">
-                <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                <div className="flex text-sm text-gray-400">
-                  <label className="relative cursor-pointer rounded-md font-medium text-[#c9fffc] hover:text-[#a0fcf9] focus-within:outline-none">
-                    <span>Upload a file</span>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="video/*"
-                      className="sr-only"
-                      onChange={handleFileSelect}
-                    />
-                  </label>
-                  <p className="pl-1">or drag and drop</p>
-                </div>
-                <p className="text-xs text-gray-400">
-                  MP4, MOV up to 100MB
+          {/* Video Display Section */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {/* Input Video */}
+            <div className="space-y-4">
+              <h3 className="text-white/80 font-medium">Original Video</h3>
+              <div
+                className={`relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+                  selectedFile
+                    ? 'border-[#4DE0F9]/30 bg-[#4DE0F9]/5'
+                    : 'border-white/20 hover:border-[#4DE0F9]/20 hover:bg-white/5'
+                }`}
+              >
+                <input
+                  type="file"
+                  accept="video/*"
+                  onChange={handleFileSelect}
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                />
+                <motion.div
+                  animate={selectedFile ? { scale: 1 } : { scale: [1, 1.1, 1] }}
+                  transition={{ duration: 2, repeat: Infinity }}
+                >
+                  <Upload className="h-12 w-12 mx-auto mb-4 text-[#4DE0F9]" />
+                </motion.div>
+                <p className="text-white/80 mb-2">
+                  {selectedFile ? selectedFile.name : 'Drop your video here or click to upload'}
                 </p>
-                {selectedFile && (
-                  <p className="text-sm text-[#c9fffc]">{selectedFile.name}</p>
-                )}
+                <p className="text-sm text-white/60">
+                  {selectedFile ? 'Click to change video' : 'MP4, MOV, or AVI up to 500MB'}
+                </p>
               </div>
+
+              {videoPreviewUrl && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl overflow-hidden bg-black/20"
+                >
+                  <video
+                    src={videoPreviewUrl}
+                    controls
+                    className="w-full max-h-[300px] object-contain"
+                  />
+                </motion.div>
+              )}
+            </div>
+
+            {/* Output Video */}
+            <div className="space-y-4">
+              <h3 className="text-white/80 font-medium">Translated Video</h3>
+              {downloadUrl ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-xl overflow-hidden bg-black/20"
+                >
+                  <video
+                    src={downloadUrl}
+                    controls
+                    className="w-full max-h-[300px] object-contain"
+                  />
+                </motion.div>
+              ) : (
+                <div className="h-[300px] flex items-center justify-center rounded-xl bg-black/20 border border-white/10">
+                  {isProcessing ? (
+                    <div className="text-center">
+                      <Loader2 className="h-8 w-8 mx-auto mb-2 text-[#4DE0F9] animate-spin" />
+                      <p className="text-white/60">Processing translation...</p>
+                    </div>
+                  ) : (
+                    <p className="text-white/40">Translated video will appear here</p>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
           {/* Language Selection */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-white/80 mb-2">
                 Source Language
               </label>
               <select
                 value={sourceLang}
                 onChange={(e) => setSourceLang(e.target.value)}
-                className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2"
+                className="w-full bg-black/30 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/50"
               >
-                {LANGUAGE_OPTIONS.map(lang => (
+                {LANGUAGE_OPTIONS.map((lang) => (
                   <option key={lang.code} value={lang.code}>
                     {lang.name}
                   </option>
@@ -409,15 +465,15 @@ export default function VideoDubbingPage() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-white/80 mb-2">
                 Target Language
               </label>
               <select
                 value={targetLang}
                 onChange={(e) => setTargetLang(e.target.value)}
-                className="mt-1 block w-full rounded-lg border-2 border-gray-700 bg-gray-800 text-white px-3 py-2"
+                className="w-full bg-black/30 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/50"
               >
-                {LANGUAGE_OPTIONS.map(lang => (
+                {LANGUAGE_OPTIONS.map((lang) => (
                   <option key={lang.code} value={lang.code}>
                     {lang.name}
                   </option>
@@ -426,39 +482,39 @@ export default function VideoDubbingPage() {
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex justify-end gap-4">
-            {downloadUrl ? (
-              <a
-                href={`${import.meta.env.VITE_AI_CLONE_BACKEND_PROXY}/api/proxy/heygen/video?url=${encodeURIComponent(downloadUrl)}`}
-                download={`dubbed_video_${targetLang}.mp4`}
-                className="px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 flex items-center gap-2"
-              >
-                <Download className="h-5 w-5" />
-                Download Dubbed Video
-              </a>
-            ) : (
-              <button
-                onClick={handleTranslation}
-                disabled={!selectedFile || isProcessing}
-                className="px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 flex items-center gap-2"
-              >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                    Translating...
-                  </>
-                ) : (
-                  <>
-                    <Languages className="h-5 w-5" />
-                    Translate Video
-                  </>
-                )}
-              </button>
-            )}
+          {/* Translate Button */}
+          <div className="flex justify-center">
+            <button
+              onClick={handleTranslation}
+              disabled={!selectedFile || isProcessing}
+              className={`px-8 py-3 rounded-full font-medium text-white transition-all duration-200 ${
+                !selectedFile || isProcessing
+                  ? 'bg-gray-600 cursor-not-allowed'
+                  : 'bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20'
+              }`}
+            >
+              {isProcessing ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                  <span>Processing...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Languages className="h-5 w-5" />
+                  <span>Translate Video</span>
+                </div>
+              )}
+            </button>
           </div>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm text-center">
+              {error}
+            </div>
+          )}
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

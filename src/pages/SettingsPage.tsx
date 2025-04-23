@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "../store/authStore";
-import { Key, Lock, Loader2 } from "lucide-react";
+import { Key, Lock, Loader2, CreditCard, Gift, Crown } from "lucide-react";
+import { motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
 
 export default function SettingsPage() {
@@ -180,153 +181,206 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Subscription Overview Card */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">
-          Subscription Plan
-        </h2>
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-500">Current Plan</p>
-            <p className="text-xl font-semibold text-gray-600">
-              {isFetching ? "Loading..." : currentPlan}
-            </p>
-          </div>
-          <button
-            onClick={handleUpgradePlan}
-            className={`inline-flex items-center justify-center w-32 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white ${currentPlan === "Pro"
-              ? "bg-red-600 hover:bg-red-700 focus:ring-red-500"
-              : "bg-blue-600 hover:bg-blue-700 focus:ring-blue-500"
-              } focus:outline-none focus:ring-2 focus:ring-offset-2`}
-          >
-            {isFetching ? "Loading..." : buttonText}
-          </button>
-        </div>
-
-        <div className="flex items-center justify-between mt-5">
-          <div>
-            <p className="text-xl font-semibold text-gray-600">Manage your Billing here</p>
-          </div>
-
-          <button
-            onClick={handleBilling}
-            className="inline-flex items-center justify-center w-32 px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2"
-          >
-            {isFetching ? "Loading..." : "Billing"}
-          </button>
-        </div>
-      </div>
-
-      {/* Password Change Section */}
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-6 flex items-center gap-2">
-          <Lock className="h-5 w-5" />
-          Change Password
-        </h2>
-
-        {passwordError && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-            {passwordError}
-          </div>
-        )}
-
-        {passwordSuccess && (
-          <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md">
-            {passwordSuccess}
-          </div>
-        )}
-
-        <form onSubmit={handlePasswordChange} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Current Password
-            </label>
-            <input
-              type="password"
-              value={currentPassword}
-              onChange={(e) => setCurrentPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              New Password
-            </label>
-            <input
-              type="password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Confirm New Password
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-              required
-              minLength={6}
-            />
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={isChangingPassword}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-black bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+    <div className="container mx-auto px-6 sm:px-12 py-8">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="max-w-7xl mx-auto"
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Left Column */}
+          <div className="space-y-6">
+            {/* Subscription Overview Card */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
             >
-              {isChangingPassword ? (
-                <>
-                  <Loader2 className="animate-spin -ml-1 mr-2 h-4 w-4" />
-                  Updating...
-                </>
-              ) : (
-                'Update Password'
-              )}
-            </button>
-          </div>
-        </form>
-      </div>
-
-      <div className="bg-white shadow rounded-lg p-6">
-        <h2 className="text-lg font-medium text-gray-900 mb-4">Bonus Minutes</h2>
-
-        <p className="text-lg font-medium text-gray-600 mb-4">
-        Total Bonus Minutes Available: {totalBonusMinutes !== null ? totalBonusMinutes : "Loading..."}
-      </p>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {bonusMinsProducts.map((product) => (
-            <div key={product.price_Id} className="bg-gray-50 p-4 rounded-lg shadow-md">
-              <h3 className="text-xl font-semibold text-gray-700">{product.title}</h3>
-              <p className="text-lg font-medium text-gray-600">Price: ${product.price}</p>
-              <p className="text-sm text-gray-500">Bonus Minutes: {product.bonus_minutes}</p>
-
-              <div className="mt-4">
-                <a
-                  href={`${product.link}?prefilled_email=${currentUser?.email}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center w-full px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:ring-blue-500 focus:outline-none focus:ring-2 focus:ring-offset-2"
-                >
-                  Get Bonus Minutes
-                </a>
+              <div className="flex items-center gap-2 mb-6">
+                <Crown className="h-5 w-5 text-[#4DE0F9]" />
+                <h2 className="text-xl font-bold text-white">Subscription Plan</h2>
               </div>
-            </div>
-          ))}
-        </div>
-      </div>
+              
+              <div className="flex items-center justify-between mb-6">
+                <div>
+                  <p className="text-sm text-white/60">Current Plan</p>
+                  <p className="text-xl font-semibold text-white">
+                    {isFetching ? "Loading..." : currentPlan}
+                  </p>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleUpgradePlan}
+                  className={`px-6 py-2 rounded-full font-medium text-black transition-all duration-200 ${
+                    currentPlan === "Pro"
+                      ? "bg-red-500 hover:bg-red-600 hover:shadow-lg hover:shadow-red-500/20"
+                      : "bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20"
+                  }`}
+                >
+                  {isFetching ? "Loading..." : buttonText}
+                </motion.button>
+              </div>
 
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5 text-white/60" />
+                  <p className="text-white/80">Manage your Billing here</p>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handleBilling}
+                  className="px-6 py-2 rounded-full font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200"
+                >
+                  {isFetching ? "Loading..." : "Billing"}
+                </motion.button>
+              </div>
+            </motion.div>
+
+            {/* Password Change Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
+            >
+              <div className="flex items-center gap-2 mb-6">
+                <Lock className="h-5 w-5 text-[#4DE0F9]" />
+                <h2 className="text-xl font-bold text-white">Change Password</h2>
+              </div>
+
+              {passwordError && (
+                <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
+                  {passwordError}
+                </div>
+              )}
+
+              {passwordSuccess && (
+                <div className="mb-4 p-3 bg-green-500/10 border border-green-500/20 text-green-400 rounded-xl text-sm">
+                  {passwordSuccess}
+                </div>
+              )}
+
+              <form onSubmit={handlePasswordChange} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Current Password
+                  </label>
+                  <input
+                    type="password"
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
+                    required
+                    minLength={6}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Confirm New Password
+                  </label>
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
+                    required
+                    minLength={6}
+                  />
+                </div>
+
+                <div className="flex justify-end">
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    type="submit"
+                    disabled={isChangingPassword}
+                    className="px-6 py-2 rounded-full font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isChangingPassword ? (
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-5 w-5 animate-spin" />
+                        <span>Updating...</span>
+                      </div>
+                    ) : (
+                      'Update Password'
+                    )}
+                  </motion.button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+
+          {/* Right Column */}
+          <div className="space-y-6">
+            {/* Bonus Minutes Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
+            >
+              <div className="flex items-center gap-2 mb-6">
+                <Gift className="h-5 w-5 text-[#4DE0F9]" />
+                <h2 className="text-xl font-bold text-white">Bonus Minutes</h2>
+              </div>
+
+              <p className="text-lg font-medium text-white/80 mb-6">
+                Total Bonus Minutes Available: {totalBonusMinutes !== null ? totalBonusMinutes : "Loading..."}
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                {bonusMinsProducts.map((product, index) => (
+                  <motion.div
+                    key={product.price_Id}
+                    whileHover={{ scale: 1.02 }}
+                    className="bg-white/5 border border-white/10 rounded-xl p-6 shadow-lg hover:shadow-[#4DE0F9]/10 transition-all duration-200"
+                  >
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-lg font-semibold text-white">{product.title}</h3>
+                      {index === 1 && (
+                        <span className="px-2 py-1 text-xs font-medium text-white bg-gradient-to-r from-[#4DE0F9]/20 to-[#A855F7]/20 rounded-full">
+                          🔥 Best Value
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xl font-medium text-white/80 mb-2">${product.price}</p>
+                    <p className="text-sm text-white/60 mb-4">{product.bonus_minutes} Bonus Minutes</p>
+
+                    <motion.a
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      href={`${product.link}?prefilled_email=${currentUser?.email}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full flex items-center justify-center px-4 py-2 rounded-full font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200"
+                    >
+                      Get Bonus Minutes
+                    </motion.a>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

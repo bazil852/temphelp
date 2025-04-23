@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Table2, Headset, Loader2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plus, Table2, Headset, Loader2, Users, Calendar, Webhook, Bell, Power, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { InfluencerCard } from '../components/InfluencerCard';
 import { CloneCard } from '../components/CloneCard';
 import CreateInfluencerModal from '../components/CreateInfluencerModal';
@@ -12,7 +12,62 @@ import MultiStepModal from '../components/MultiStepModal';
 import { usePlanLimits } from '../hooks/usePlanLimits';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
+import DashboardButton from '../components/DashboardButton';
+import WebhookModal from '../components/WebhookModal';
+import ActiveWebhooksPanel from '../components/ActiveWebhooksPanel';
+import AutomationWidget from '../components/AutomationWidget';
+import ProcessingQueueWidget from '../components/ProcessingQueueWidget';
+import FeaturedContentRow from '../components/FeaturedContentRow';
 
+// Add mock data for featured content
+const mockRecentVideos = [
+  {
+    id: '1',
+    type: 'video' as const,
+    title: 'Summer Collection Lookbook',
+    thumbnail: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30',
+    duration: '2:30',
+  },
+  {
+    id: '2',
+    type: 'video' as const,
+    title: 'Product Review: New Smartwatch',
+    thumbnail: 'https://images.unsplash.com/photo-1579586337278-3befd40fd17a',
+    duration: '1:45',
+  },
+  {
+    id: '3',
+    type: 'video' as const,
+    title: 'Travel Vlog: Paris Fashion Week',
+    thumbnail: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e',
+    duration: '3:15',
+  },
+];
+
+const mockTopInfluencers = [
+  {
+    id: '1',
+    type: 'influencer' as const,
+    title: 'Sarah Chen',
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
+    status: 'Ready',
+  },
+  {
+    id: '2',
+    type: 'influencer' as const,
+    title: 'Marcus Rodriguez',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d',
+    status: 'Ready',
+  },
+  {
+    id: '3',
+    type: 'influencer' as const,
+    title: 'Emma Thompson',
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80',
+    status: 'Setup Pending',
+  },
+];
 
 function DashboardPage() {
   const navigate = useNavigate();
@@ -29,6 +84,30 @@ function DashboardPage() {
     available: Influencer[];
     clones: Array<any>;
   }>({ pending: [], available: [], clones: [] });
+  const [isWebhookModalOpen, setIsWebhookModalOpen] = useState(false);
+  const [activeTriggers, setActiveTriggers] = useState(3);
+  const [recentTriggers, setRecentTriggers] = useState([
+    { id: 1, name: 'Morning Upload', time: '2h ago' },
+    { id: 2, name: 'Voice Sync', time: 'Yesterday' }
+  ]);
+  const [processingItems, setProcessingItems] = useState([
+    { id: 1, name: 'Voice Cloning', progress: 75, time: '5 min left' },
+    { id: 2, name: 'Rendering', progress: 30, time: '15 min left' }
+  ]);
+  const [recentVideos, setRecentVideos] = useState<Array<{
+    id: string;
+    type: 'video';
+    title: string;
+    thumbnail: string;
+    duration: string;
+  }>>([]);
+  const [topInfluencers, setTopInfluencers] = useState<Array<{
+    id: string;
+    type: 'influencer';
+    title: string;
+    avatar: string;
+    status: string;
+  }>>([]);
   
   const statusSteps = [
     { key: 'pending', label: 'Processing' },
@@ -128,279 +207,248 @@ function DashboardPage() {
     setIsRequestModalOpen(false);
   };
 
+  // Add new useEffect for fetching recent videos
+  useEffect(() => {
+    const fetchRecentVideos = async () => {
+      if (!currentUser?.id) return;
+
+      try {
+        // First get all influencers for the current user
+        const { data: influencers, error: influencersError } = await supabase
+          .from('influencers')
+          .select('id')
+          .eq('user_id', currentUser.id);
+
+        if (influencersError) throw influencersError;
+
+        // Get all content for these influencers
+        const influencerIds = influencers.map(inf => inf.id);
+        const { data: contents, error: contentsError } = await supabase
+          .from('contents')
+          .select('id, title, video_url, created_at')
+          .in('influencer_id', influencerIds)
+          .eq('status', 'completed')
+          .not('video_url', 'is', null)
+          .order('created_at', { ascending: false })
+          .limit(5);
+
+        if (contentsError) throw contentsError;
+
+        // Transform the data to match our ContentItem interface
+        const transformedVideos = contents.map(content => ({
+          id: content.id,
+          type: 'video' as const,
+          title: content.title,
+          thumbnail: content.video_url || 'https://images.unsplash.com/photo-1523275335684-37898b6baf30', // Use video_url as thumbnail
+          duration: '0:30', // Default duration since we don't have it in the database
+        }));
+
+        setRecentVideos(transformedVideos);
+      } catch (error) {
+        console.error('Error fetching recent videos:', error);
+      }
+    };
+
+    fetchRecentVideos();
+  }, [currentUser?.id]);
+
+  // Add new useEffect for fetching top influencers
+  useEffect(() => {
+    const fetchTopInfluencers = async () => {
+      if (!currentUser?.id) return;
+
+      try {
+        // Get all influencers for the current user
+        const { data: influencers, error: influencersError } = await supabase
+          .from('influencers')
+          .select('id, name, preview_url, status')
+          .eq('user_id', currentUser.id);
+
+        if (influencersError) throw influencersError;
+
+        // Get video count for each influencer
+        const influencersWithCounts = await Promise.all(
+          influencers.map(async (influencer) => {
+            const { count, error: countError } = await supabase
+              .from('contents')
+              .select('*', { count: 'exact', head: true })
+              .eq('influencer_id', influencer.id)
+              .eq('status', 'completed');
+
+            if (countError) throw countError;
+
+            return {
+              ...influencer,
+              videoCount: count || 0
+            };
+          })
+        );
+
+        // Sort by video count and take top 5
+        const sortedInfluencers = influencersWithCounts
+          .sort((a, b) => b.videoCount - a.videoCount)
+          .slice(0, 5)
+          .map(inf => ({
+            id: inf.id,
+            type: 'influencer' as const,
+            title: inf.name,
+            avatar: inf.preview_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
+            status: inf.status === 'completed' ? 'Ready' : 'Setup Pending'
+          }));
+
+        setTopInfluencers(sortedInfluencers);
+      } catch (error) {
+        console.error('Error fetching top influencers:', error);
+      }
+    };
+
+    fetchTopInfluencers();
+  }, [currentUser?.id]);
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-8">
-        {/* Usage Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {/* Usage Metrics */}
-          <div className={`bg-[#1a1a1a] rounded-lg p-6 shadow-lg border border-gray-800 ${limitsLoading ? 'animate-pulse' : ''}`}>
-            <h3 className="text-gray-400 text-sm mb-2">Influencers</h3>
-            <div className="flex justify-between items-baseline mb-4">
-              {limitsLoading ? (
-                <div className="h-8 w-24 bg-gray-700 rounded animate-pulse"></div>
-              ) : (
-                <>
-                  <span className="text-2xl font-bold text-gray-200">{avatarsUsed}</span>
-                  <span className="text-gray-400">/ {avatarLimit === -1 ? '∞' : avatarLimit}</span>
-                </>
-              )}
-            </div>
-            <div className="relative h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="absolute top-0 left-0 h-full bg-[#c9fffc] transition-all duration-500"
-                style={{ 
-                  width: limitsLoading ? '0%' : `${avatarLimit === -1 ? 100 : Math.min((avatarsUsed / avatarLimit) * 100, 100)}%`,
-                  opacity: avatarLimit === -1 ? 0.5 : 1
-                }}
-              />
-            </div>
-          </div>
-
-          <div className={`bg-[#1a1a1a] rounded-lg p-6 shadow-lg border border-gray-800 ${limitsLoading ? 'animate-pulse' : ''}`}>
-            <h3 className="text-gray-400 text-sm mb-2">AI Cloning</h3>
-            <div className="flex justify-between items-baseline mb-4">
-              {limitsLoading ? (
-                <div className="h-8 w-24 bg-gray-700 rounded animate-pulse"></div>
-              ) : (
-                <>
-                  <span className="text-2xl font-bold text-gray-200">{aiCloningUsed}</span>
-                  <span className="text-gray-400">/ {aiCloningLimit === -1 ? '∞' : aiCloningLimit}</span>
-                </>
-              )}
-            </div>
-            <div className="relative h-2 bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="absolute top-0 left-0 h-full bg-[#c9fffc] transition-all duration-500"
-                style={{ 
-                  width: limitsLoading ? '0%' : `${aiCloningLimit === -1 ? 100 : Math.min((aiCloningUsed / aiCloningLimit) * 100, 100)}%`,
-                  opacity: aiCloningLimit === -1 ? 0.5 : 1
-                }}
-              />
-            </div>
-          </div>
-
-          <div className={`bg-[#1a1a1a] rounded-lg p-6 shadow-lg border border-gray-800 ${limitsLoading ? 'animate-pulse' : ''}`}>
-            <h3 className="text-gray-400 text-sm mb-2">Video Minutes</h3>
-            <div className="flex justify-between items-baseline mb-4">
-              {limitsLoading ? (
-                <div className="h-8 w-24 bg-gray-700 rounded animate-pulse"></div>
-              ) : (
-                <>
-                  <span className="text-2xl font-bold text-gray-200">{videoMinutesUsed || 0}</span>
-                  <span className="text-gray-400">/ {videoMinutesLimit === -1 ? '∞' : videoMinutesLimit}</span>
-                </>
-              )}
-            </div>
-            <div className="relative h-2 bg-gray-700 rounded-full overflow-hidden" style={{ zIndex: 1 }}>
-              <div 
-                className="absolute top-0 left-0 h-full bg-[#c9fffc] transition-all duration-500"
-                style={{ 
-                  width: limitsLoading ? '0%' : `${videoMinutesLimit === -1 ? 100 : Math.min((videoMinutesUsed / videoMinutesLimit) * 100, 100)}%`,
-                  opacity: videoMinutesLimit === -1 ? 0.5 : 1,
-                  zIndex: 2
-                }}
-              />
-            </div>
-          </div>
-
-          <div className={`bg-[#1a1a1a] rounded-lg p-6 shadow-lg border border-gray-800 ${limitsLoading ? 'animate-pulse' : ''}`}>
-            <h3 className="text-gray-400 text-sm mb-2">Automations</h3>
-            <div className="flex items-center justify-between">
-              {limitsLoading ? (
-                <div className="h-8 w-24 bg-gray-700 rounded animate-pulse"></div>
-              ) : (
-                <>
-                  <span className="text-2xl font-bold text-gray-200">
-                    {automationsEnabled ? 'Enabled' : 'Disabled'}
-                  </span>
-                  <div className={`w-4 h-4 rounded-full ${automationsEnabled ? 'bg-[#c9fffc]' : 'bg-gray-600'}`} />
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-        
-        {/* Header and Actions */}
-        <div className="flex justify-between items-center mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Your Influencers</h1>
-            <div className="flex space-x-4">
-              <button
-                onClick={() => setActiveTab('available')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'available'
-                    ? 'bg-[#c9fffc] text-black'
-                    : 'text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                Available ({filteredInfluencers.available.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('pending')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'pending'
-                    ? 'bg-[#c9fffc] text-black'
-                    : 'text-gray-400 hover:text-gray-300'
-                } ${filteredInfluencers.pending.length > 0 ? 'animate-pulse' : ''}`}
-              >
-                Pending ({filteredInfluencers.pending.length})
-              </button>
-              <button
-                onClick={() => setActiveTab('clones')}
-                className={`px-4 py-2 rounded-lg transition-colors ${
-                  activeTab === 'clones'
-                    ? 'bg-[#c9fffc] text-black'
-                    : 'text-gray-400 hover:text-gray-300'
-                }`}
-              >
-                Clones ({filteredInfluencers.clones.length})
-              </button>
-            </div>
-          </div>
-          <div className="flex gap-2">
-            {limitsLoading ? (
-              <div className="flex gap-2">
-                <div className="w-10 h-10 bg-gray-700 rounded animate-pulse"></div>
-                <div className="w-10 h-10 bg-gray-700 rounded animate-pulse"></div>
-                <div className="w-10 h-10 bg-gray-700 rounded animate-pulse"></div>
-              </div>
-            ) : (
-              <button
-                onClick={() => navigate('/planner')}
-                data-tour="calendar"
-                className="flex items-center justify-center bg-[#c9fffc] text-black p-2 rounded-lg hover:bg-[#a0fcf9] transition-colors"
-                title="Content Table"
-              >
-                <Table2 size={20} />
-              </button>
-            )}
-          </div>
-        </div>
-        
-        <div>
-          {/* Influencers Grid */}
-          {activeTab === 'pending' ? (
-            filteredInfluencers.pending.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredInfluencers.pending.map((influencer) => (
-                  <div
-                    key={influencer.id}
-                    className="bg-[#1a1a1a] rounded-xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 relative"
-                  >
-                    <div className="absolute top-4 left-4 z-10">
-                      <div className="flex items-center gap-2 bg-black bg-opacity-75 rounded-lg px-3 py-2">
-                        <Loader2 className="h-4 w-4 animate-spin text-[#c9fffc]" />
-                        <span className="text-sm text-white capitalize">
-  {influencer.status?.toLowerCase().includes('pending') ? 'Processing' : influencer.status?.replace('-', ' ')}
-</span>
+          {/* Analytics HUD Strip */}
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ 
+            type: "spring", 
+            stiffness: 100, 
+            damping: 20,
+            duration: 0.5
+          }}
+          className="bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] p-6"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* AI Cloning Analytics */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="flex items-center justify-between"
+            >
+              <div className="flex flex-col">
+                <div className="text-sm text-gray-400">AI Cloning</div>
+                <div className="text-2xl font-bold text-white">
+                  {limitsLoading ? (
+                    <div className="h-6 w-16 bg-gray-700 rounded animate-pulse"></div>
+                  ) : (
+                    <>
+                      {aiCloningUsed} <span className="text-gray-400">/ {aiCloningLimit === -1 ? '∞' : aiCloningLimit}</span>
+                    </>
+                  )}
+                        </div>
                       </div>
-                    </div>
-                    <div className="p-4">
-                      <div className="aspect-square overflow-hidden rounded-xl border-2 border-gray-700">
-                        {influencer.preview_url ? (
-                          <img
-                            src={influencer.preview_url}
-                            alt={influencer.name}
-                            className="w-full h-full object-contain bg-gray-800"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-                            <span className="text-gray-400 text-lg">Processing</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    <div className="p-4 pt-0">
-                      <h3 className="text-xl font-bold text-white mb-4">{influencer.name}</h3>
-                      <div className="flex items-center gap-2 mt-4">
-                        {statusSteps.map((step, index) => {
-                          const currentIndex = getStatusIndex(influencer.status);
-                          const isActive = index <= currentIndex;
-                          const isLast = index === statusSteps.length - 1;
-                          
-                          return (
-                            <React.Fragment key={step.key}>
-                              <div className="flex flex-col items-center">
-                                <div
-                                  className={`w-3 h-3 rounded-full ${
-                                    isActive ? 'bg-[#c9fffc]' : 'bg-gray-600'
-                                  }`}
-                                />
-                                <span className={`text-xs mt-1 ${
-                                  isActive ? 'text-[#c9fffc]' : 'text-gray-500'
-                                }`}>
-                                  {step.label}
-                                </span>
-                              </div>
-                              {!isLast && (
-                                <div
-                                  className={`flex-1 h-0.5 ${
-                                    index < currentIndex ? 'bg-[#c9fffc]' : 'bg-gray-600'
-                                  }`}
-                                />
-                              )}
-                            </React.Fragment>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center text-gray-400 py-12">
-                No pending influencers
-              </div>
-            )
-          ) : activeTab === 'available' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 min-h-[200px]">
-              {canCreateAvatar && (
-                <button
-                  onClick={handleOpenRequestModal}
-                  className="bg-[#1a1a1a] rounded-xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 border-2 border-dashed border-gray-700 hover:border-[#c9fffc] group"
-                >
-                  <div className="p-4">
-                    <div className="aspect-square rounded-xl border-2 border-gray-700 group-hover:border-[#c9fffc] transition-colors flex items-center justify-center">
-                      <div className="flex flex-col items-center gap-4">
-                        <Plus size={40} className="text-gray-400 group-hover:text-[#c9fffc] transition-colors" />
-                        <span className="text-gray-400 group-hover:text-[#c9fffc] transition-colors font-medium">
-                          Create New Influencer
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </button>
-              )}
-              {!canCreateAvatar && (
-                <div className="bg-[#1a1a1a] rounded-xl shadow-xl overflow-hidden p-6 border-2 border-red-500/20">
-                  <div className="flex flex-col items-center justify-center h-full text-center gap-4">
-                    <div className="text-red-500/60 font-medium">
-                      Influencer Limit Reached
-                    </div>
-                    <div className="text-sm text-gray-500">
-                      {avatarsUsed}/{avatarLimit} influencers created.
-                      Please upgrade your plan to create more influencers.
-                    </div>
-                  </div>
+                      <div className="w-24">
+                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ 
+                              width: `${aiCloningLimit === -1 ? 100 : (aiCloningUsed / aiCloningLimit) * 100}%`
+                            }}
+                    transition={{ duration: 0.5 }}
+                    className="h-full bg-[#4DE0F9] rounded-full"
+                  />
                 </div>
-              )}
-              {filteredInfluencers.available.map(influencer => (
-                <InfluencerCard key={influencer.id} influencer={influencer} onEdit={handleEditInfluencer} />
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-8">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredInfluencers.clones
-                  .map((clone) => (
-                    <CloneCard key={clone.id} clone={clone} />
-                  ))}
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            </motion.div>
+
+                {/* Video Minutes Analytics */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex items-center justify-between"
+            >
+              <div className="flex flex-col">
+                <div className="text-sm text-gray-400">Video Minutes</div>
+                <div className="text-2xl font-bold text-white">
+                  {limitsLoading ? (
+                    <div className="h-6 w-16 bg-gray-700 rounded animate-pulse"></div>
+                  ) : (
+                    <>
+                          {videoMinutesUsed || 0} <span className="text-gray-400">/ {videoMinutesLimit === -1 ? '∞' : videoMinutesLimit}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+              <div className="w-24">
+                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ 
+                      width: `${videoMinutesLimit === -1 ? 100 : (videoMinutesUsed / videoMinutesLimit) * 100}%`
+                    }}
+                    transition={{ duration: 0.5 }}
+                    className="h-full bg-[#4DE0F9] rounded-full"
+                  />
+                </div>
+              </div>
+            </motion.div>
+
+                {/* Automations Analytics */}
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
+              className="flex items-center justify-between"
+            >
+              <div className="flex flex-col">
+                <div className="text-sm text-gray-400">Automations</div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${
+                    automationsEnabled ? 'bg-[#4DE0F9]' : 'bg-gray-600'
+                  }`} />
+                  <div className="text-2xl font-bold text-white">
+                  {limitsLoading ? (
+                    <div className="h-6 w-16 bg-gray-700 rounded animate-pulse"></div>
+                  ) : (
+                      automationsEnabled ? 'Enabled' : 'Disabled'
+                    )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`w-4 h-4 rounded-full ${
+                          automationsEnabled 
+                            ? 'bg-[#4DE0F9] animate-[pulse_2s_infinite]' 
+                            : 'bg-gray-600'
+                        }`} />
+            </motion.div>
+          </div>
+        </motion.div>
+        
+        {/* Quick Actions */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <DashboardButton
+            icon={Users}
+            title="Influencers"
+            description="Manage your AI influencers and their content"
+            to="/influencers"
+          />
+          <DashboardButton
+            icon={Calendar}
+            title="Content Planner"
+            description="Plan and schedule your content calendar"
+            to="/planner"
+          />
+          <DashboardButton
+            icon={Webhook}
+            title="Automations"
+            description="Set up automated workflows and triggers"
+            onClick={() => setIsWebhookModalOpen(true)}
+            isDisabled={!automationsEnabled}
+                    />
+                  </div>
+        
+        {/* Widgets Grid */}
+        <div className="flex flex-wrap gap-6">
+          <AutomationWidget
+            activeTriggers={activeTriggers}
+            recentTriggers={recentTriggers}
+          />
+          <ProcessingQueueWidget items={processingItems} />
+          </div>
 
       {isModalOpen && (
         <CreateInfluencerModal
@@ -410,10 +458,30 @@ function DashboardPage() {
       )}
       {isRequestModalOpen && (
         <MultiStepModal onClose={handleCloseRequestModal}/>
-        // <RequestInfluencerModal onClose={handleCloseRequestModal} />
       )}
+        {isWebhookModalOpen && (
+          <WebhookModal 
+            onClose={() => setIsWebhookModalOpen(false)} 
+            influencerId={editingInfluencer?.id} 
+          />
+        )}
       <SafariHomeScreenPopup />
-    </div>
+
+        {/* Featured Content Section */}
+        <div className="mt-12">
+          <FeaturedContentRow
+            title="Recent Videos"
+            items={recentVideos}
+            type="video"
+          />
+          <FeaturedContentRow
+            title="Top AI Influencers"
+            items={topInfluencers}
+            type="influencer"
+          />
+        </div>
+      </div>
+  </div>
   );
 }
 

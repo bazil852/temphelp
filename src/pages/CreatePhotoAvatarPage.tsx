@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Loader2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 
@@ -139,28 +140,40 @@ export default function CreatePhotoAvatarPage() {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <button
-        onClick={() => navigate('/dashboard')}
-        className="flex items-center text-gray-600 hover:text-gray-900 mb-4"
+    <div className="container mx-auto px-6 sm:px-12 py-8">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 0.3 }}
+        className="max-w-7xl mx-auto"
       >
-        <ArrowLeft className="h-4 w-4 mr-2" />
-        Back to Dashboard
-      </button>
+        <motion.button
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center text-white/60 hover:text-white mb-8"
+        >
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Back to Dashboard
+        </motion.button>
 
-      <div className="max-w-2xl mx-auto">
-        <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
+        >
           <h1 className="text-2xl font-bold text-white mb-8">Create Avatar from Photo</h1>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+            <div className="mb-4 p-3 bg-red-500/10 border border-red-500/20 text-red-400 rounded-xl text-sm">
               {error}
             </div>
           )}
 
           <div className="space-y-6">
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-white/80 mb-2">
                 Avatar Name
               </label>
               <input
@@ -168,54 +181,66 @@ export default function CreatePhotoAvatarPage() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Enter avatar name"
-                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
+                className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">
+              <label className="block text-sm font-medium text-white/80 mb-2">
                 Upload Photo
               </label>
-              <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-700 border-dashed rounded-lg">
-                <div className="space-y-1 text-center">
-                  <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                  <div className="flex text-sm text-gray-400">
-                    <label className="relative cursor-pointer rounded-md font-medium text-[#c9fffc] hover:text-[#a0fcf9] focus-within:outline-none">
-                      <span>Upload a file</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        className="sr-only"
-                        onChange={handleFileSelect}
-                      />
-                    </label>
-                    <p className="pl-1">or drag and drop</p>
+              <motion.div
+                whileHover={{ scale: 1.01 }}
+                className="relative group"
+              >
+                <div className="mt-1 flex justify-center px-6 pt-8 pb-8 border-2 border-white/10 rounded-2xl bg-white/5 hover:border-[#4DE0F9] transition-all duration-200">
+                  <div className="space-y-3 text-center">
+                    <Upload className="mx-auto h-12 w-12 text-white/60 group-hover:text-[#4DE0F9] transition-colors duration-200" />
+                    <div className="flex text-sm text-white/60">
+                      <label className="relative cursor-pointer rounded-full font-medium text-[#4DE0F9] hover:text-[#4DE0F9]/80 focus-within:outline-none">
+                        <span>Upload a file</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="sr-only"
+                          onChange={handleFileSelect}
+                        />
+                      </label>
+                      <p className="pl-1">or drag and drop</p>
+                    </div>
+                    <p className="text-xs text-white/40">
+                      PNG, JPG up to 10MB
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-400">
-                    PNG, JPG up to 10MB
-                  </p>
                 </div>
-              </div>
+              </motion.div>
             </div>
 
             {previewUrl && (
-              <div>
-                <h3 className="text-sm font-medium text-gray-300 mb-2">Preview</h3>
-                <div className="relative w-48 h-48 mx-auto">
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/5 rounded-2xl p-4 border border-white/10"
+              >
+                <h3 className="text-sm font-medium text-white/80 mb-3">Preview</h3>
+                <div className="relative w-full max-w-xs mx-auto aspect-square">
                   <img
                     src={previewUrl}
                     alt="Preview"
-                    className="rounded-lg object-cover w-full h-full"
+                    className="rounded-xl object-cover w-full h-full"
                   />
+                  <div className="absolute inset-0 rounded-xl ring-2 ring-[#4DE0F9]/20" />
                 </div>
-              </div>
+              </motion.div>
             )}
 
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
               onClick={handleUpload}
               disabled={!selectedFile || !name.trim() || isUploading}
-              className={`w-full px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 flex items-center justify-center gap-2 ${
+              className={`w-full px-6 py-3 rounded-full font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
                 isCreatingAvatar ? 'cursor-wait' : ''
               }`}
             >
@@ -227,10 +252,10 @@ export default function CreatePhotoAvatarPage() {
               ) : (
                 'Create Avatar'
               )}
-            </button>
+            </motion.button>
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }

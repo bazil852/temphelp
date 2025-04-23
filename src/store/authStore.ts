@@ -6,6 +6,8 @@ interface User {
   email: string;
   openaiApiKey?: string;
   heygenApiKey?: string;
+  hasPlan?: boolean;
+  auth_id?: string;
 }
 
 interface AuthState {
@@ -40,7 +42,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
         const user: User = {
           id: data.user.id,
-          auth_id: data.user.auth_user_id,
+          auth_id: data.user.id,
           email: data.user.email || '',
         };
         localStorage.setItem('currentUser', JSON.stringify(user)); // Save to localStorage
