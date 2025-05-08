@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Play, Pause } from 'lucide-react';
+import { X, Play, Pause, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface VideoPlayerModalProps {
@@ -10,6 +10,7 @@ interface VideoPlayerModalProps {
 
 export default function VideoPlayerModal({ videoUrl, title, onClose }: VideoPlayerModalProps) {
   const [isPlaying, setIsPlaying] = React.useState(false);
+  const [isMuted, setIsMuted] = React.useState(true);
   const videoRef = React.useRef<HTMLVideoElement>(null);
 
   const togglePlay = () => {
@@ -20,6 +21,13 @@ export default function VideoPlayerModal({ videoUrl, title, onClose }: VideoPlay
         videoRef.current.play();
       }
       setIsPlaying(!isPlaying);
+    }
+  };
+
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !isMuted;
+      setIsMuted(!isMuted);
     }
   };
 
@@ -47,6 +55,18 @@ export default function VideoPlayerModal({ videoUrl, title, onClose }: VideoPlay
             <X className="w-6 h-6 text-white" />
           </button>
 
+          {/* Sound toggle button */}
+          <button
+            onClick={toggleMute}
+            className="absolute top-4 right-16 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+          >
+            {isMuted ? (
+              <VolumeX className="w-6 h-6 text-white" />
+            ) : (
+              <Volume2 className="w-6 h-6 text-white" />
+            )}
+          </button>
+
           {/* Video container */}
           <div className="relative aspect-video">
             <video
@@ -56,6 +76,7 @@ export default function VideoPlayerModal({ videoUrl, title, onClose }: VideoPlay
               playsInline
               controls
               autoPlay
+              muted={isMuted}
             />
           </div>
 

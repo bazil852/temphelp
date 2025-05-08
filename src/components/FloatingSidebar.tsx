@@ -18,6 +18,8 @@ import {
   X,
   Film,
   Book,
+  Workflow,
+  Mic,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { usePlanLimits } from '../hooks/usePlanLimits';
@@ -58,6 +60,8 @@ export default function FloatingSidebar() {
     { icon: Home, label: 'Home', path: '/dashboard' },
     { icon: Users, label: 'Influencers', path: '/influencers' },
     { icon: Film, label: 'Videos', path: '/videos' },
+    { icon: Workflow, label: 'Workflow', path: '/workflow' },
+    { icon: Mic, label: 'Podcast Studio', path: '/podcast-studio' },
     { icon: Webhook, label: 'Automations', path: '/webhooks', onClick: handleAutomationClick },
     { isSeparator: true },
     { icon: Languages, label: 'Video Dubbing', path: '/video-dubbing' },

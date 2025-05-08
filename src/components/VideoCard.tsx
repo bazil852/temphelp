@@ -10,7 +10,8 @@ import {
   ChevronUp,
   Trash2,
   Edit,
-  Upload
+  Upload,
+  FileText
 } from 'lucide-react';
 
 interface VideoCardProps {
@@ -25,10 +26,10 @@ interface VideoCardProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   onAddCaption: (videoUrl: string) => void;
+  onOpenModal: (content: VideoCardProps['content']) => void;
 }
 
-export default function VideoCard({ content, isSelected, onSelect, onAddCaption }: VideoCardProps) {
-  const [isExpanded, setIsExpanded] = useState(false);
+export default function VideoCard({ content, isSelected, onSelect, onAddCaption, onOpenModal }: VideoCardProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const cardRef = useRef(null);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -37,13 +38,9 @@ export default function VideoCard({ content, isSelected, onSelect, onAddCaption 
     margin: "0px 0px -10% 0px"
   });
 
-  const truncatedScript = content.script ? 
-    content.script.split('\n').slice(0, 2).join('\n') + 
-    (content.script.split('\n').length > 2 ? '...' : '') : 
-    "No script available";
-
   const handlePlayClick = (e: React.MouseEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     if (videoRef.current) {
       if (isPlaying) {
         videoRef.current.pause();
@@ -54,6 +51,11 @@ export default function VideoCard({ content, isSelected, onSelect, onAddCaption 
     }
   };
 
+  const handleCardClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    onOpenModal(content);
+  };
+
   return (
     <div
       ref={cardRef}
@@ -62,25 +64,11 @@ export default function VideoCard({ content, isSelected, onSelect, onAddCaption 
         transform: isInView ? 'translateY(0) scale(1)' : 'translateY(40px) scale(0.95)',
         transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1)'
       }}
-      className="bg-white/5 rounded-2xl border border-white/10 shadow-sm backdrop-blur-md p-3 flex flex-col gap-3"
+      className="bg-white/5 rounded-2xl border border-white/10 shadow-sm backdrop-blur-md overflow-hidden cursor-pointer hover:shadow-lg hover:shadow-white/5 transition-all duration-300"
+      onClick={handleCardClick}
     >
-      {/* Header Row */}
-      <div className="flex justify-between items-center">
-        <h3 className="text-white font-semibold text-sm truncate">
-          {content.title || "Untitled"}
-        </h3>
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onSelect(content.id)}
-            className="h-4 w-4 rounded border-gray-600 text-[#c9fffc] focus:ring-[#c9fffc] focus:ring-offset-0 focus:ring-1"
-          />
-        </div>
-      </div>
-
       {/* Video Preview */}
-      <div className="relative aspect-square rounded-xl overflow-hidden bg-black/20 group">
+      <div className="relative aspect-video bg-black/20 group">
         {content.status === "completed" && content.video_url ? (
           <>
             <video
@@ -116,72 +104,28 @@ export default function VideoCard({ content, isSelected, onSelect, onAddCaption 
         )}
       </div>
 
-      {/* Script Preview */}
-      <div className="flex-1">
-        <div className="bg-white/5 rounded-lg p-2">
-          <p className="text-gray-300 text-xs font-mono whitespace-pre-wrap">
-            {isExpanded ? content.script : truncatedScript}
-          </p>
-          {content.script && content.script.split('\n').length > 2 && (
-            <button
-              onClick={() => setIsExpanded(!isExpanded)}
-              className="mt-2 text-[#c9fffc] text-xs hover:text-[#a0fcf9] transition-colors flex items-center gap-1"
-            >
-              {isExpanded ? (
-                <>
-                  Show less <ChevronUp className="h-3 w-3" />
-                </>
-              ) : (
-                <>
-                  Read more <ChevronDown className="h-3 w-3" />
-                </>
-              )}
-            </button>
-          )}
+      {/* Content Preview */}
+      <div className="p-4">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="text-white font-semibold text-sm truncate flex-1">
+            {content.title || "Untitled"}
+          </h3>
+          <input
+            type="checkbox"
+            checked={isSelected}
+            onChange={(e) => {
+              e.stopPropagation();
+              onSelect(content.id);
+            }}
+            className="h-4 w-4 rounded border-gray-600 text-[#c9fffc] focus:ring-[#c9fffc] focus:ring-offset-0 focus:ring-1"
+          />
         </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-between items-center">
-        {content.status === "completed" && content.video_url ? (
-          <>
-            <a
-              href={content.video_url}
-              download
-              className="bg-white/10 hover:bg-white/20 transition rounded-full p-2 text-white"
-              title="Download Video"
-            >
-              <Download className="h-4 w-4" />
-            </a>
-            <button
-              onClick={() => content.video_url && onAddCaption(content.video_url)}
-              className="bg-white/10 hover:bg-white/20 transition rounded-full p-2 text-white"
-              title="Add Captions"
-            >
-              <Subtitles className="h-4 w-4" />
-            </button>
-          </>
-        ) : (
-          <div className="w-8 h-8" /> // Spacer for alignment
-        )}
-        <button
-          className="bg-white/10 hover:bg-white/20 transition rounded-full p-2 text-white"
-          title="Edit Video"
-        >
-          <Edit className="h-4 w-4" />
-        </button>
-        <button
-          className="bg-white/10 hover:bg-white/20 transition rounded-full p-2 text-white"
-          title="Delete Video"
-        >
-          <Trash2 className="h-4 w-4" />
-        </button>
-        <button
-          className="bg-white/10 hover:bg-white/20 transition rounded-full p-2 text-white"
-          title="Upload Video"
-        >
-          <Upload className="h-4 w-4" />
-        </button>
+        <div className="flex items-center gap-2 text-gray-400 text-xs">
+          <FileText className="h-3 w-3" />
+          <span className="truncate">
+            {content.script?.split('\n')[0] || "No script available"}
+          </span>
+        </div>
       </div>
     </div>
   );

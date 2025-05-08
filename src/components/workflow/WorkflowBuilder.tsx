@@ -16,6 +16,8 @@ import { NodeData, NodeTypeConfig, WorkflowNode } from './types';
 import { TriggerNode } from './nodes/TriggerNode';
 import { ActionNode } from './nodes/ActionNode';
 import { FilterNode } from './nodes/FilterNode';
+import { GenAiNode } from './nodes/GenAiNode';
+import { ReturnNode } from './nodes/ReturnNode';
 import { NodeSidebar } from './NodeSidebar';
 import { NodeProperties } from './NodeProperties';
 
@@ -55,6 +57,8 @@ const nodeTypes = {
   trigger: TriggerNode,
   action: ActionNode,
   filter: FilterNode,
+  'gen-ai': GenAiNode,
+  return: ReturnNode,
 };
 
 export default function WorkflowBuilder() {
@@ -87,9 +91,9 @@ export default function WorkflowBuilder() {
       type: nodeType,
       position: { x: 100, y: 100 },
       data: {
-        label: nodeType.charAt(0).toUpperCase() + nodeType.slice(1),
+        label: nodeType === 'action' ? 'Generate Video' : nodeType.charAt(0).toUpperCase() + nodeType.slice(1),
         type: nodeType,
-        config: {},
+        config: nodeType === 'action' ? { action: 'generate_video' } : {},
       },
     };
     setNodes((nds) => [...nds, newNode]);
@@ -134,8 +138,9 @@ export default function WorkflowBuilder() {
           onNodeClick={onNodeClick}
           nodeTypes={nodeTypes}
           fitView
+          className="bg-transparent"
         >
-          <Background />
+          <Background color="#c9fffc" gap={16} size={1} />
           <Controls />
         </ReactFlow>
       </div>
@@ -146,6 +151,8 @@ export default function WorkflowBuilder() {
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
           onUpdate={(config) => handleNodeConfigUpdate(selectedNode.id, config)}
+          nodes={nodes}
+          edges={edges}
         />
       )}
 

@@ -9,7 +9,8 @@ import {
   Loader2,
   RefreshCw,
   Power,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Influencer } from '../types';
@@ -19,6 +20,7 @@ import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
 import { useInfluencerStore } from '../store/influencerStore';
+import { CardShell } from './CardShell';
 
 interface InfluencerCardProps {
   influencer: Influencer;
@@ -28,7 +30,7 @@ interface InfluencerCardProps {
 
 interface ConfirmMotionModalProps {
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (prompt: string, motionType: 'consistent' | 'expressive') => void;
   isLoading: boolean;
 }
 
@@ -43,41 +45,91 @@ function ConfirmMotionModal({
   onConfirm,
   isLoading,
 }: ConfirmMotionModalProps) {
+  const [prompt, setPrompt] = useState('');
+  const [motionType, setMotionType] = useState<'consistent' | 'expressive'>('consistent');
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#1a1a1a] rounded-lg p-6 max-w-md w-full">
-        <h3 className="text-xl font-semibold text-white mb-4">Add Motion</h3>
-        <p className="text-gray-300 mb-6">
-          Are you sure you want to add motion to this influencer? This will
-          create a new look with motion capabilities.
-        </p>
-        <div className="flex justify-end gap-3">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        transition={{ duration: 0.2 }}
+        className="bg-[#1a1a1a] rounded-xl p-6 max-w-md w-full border border-white/10"
+      >
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="text-xl font-semibold text-white">Add Motion</h3>
+            <p className="mt-1 text-sm text-gray-400">
+              Create a new look with motion capabilities
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="px-4 py-2 text-gray-300 hover:text-white"
-            disabled={isLoading}
+            className="text-gray-400 hover:text-white transition-colors"
           >
-            Cancel
-          </button>
-          <button
-            onClick={onConfirm}
-            disabled={isLoading}
-            className="px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 flex items-center gap-2"
-          >
-            {isLoading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Adding Motion...
-              </>
-            ) : (
-              <>
-                <Wand2 className="h-4 w-4" />
-                Add Motion
-              </>
-            )}
+            <X className="h-5 w-5" />
           </button>
         </div>
-      </div>
+
+        <div className="space-y-6">
+          <div>
+            <label htmlFor="motionType" className="block text-sm font-medium text-gray-300 mb-2">
+              Motion Type
+            </label>
+            <select
+              id="motionType"
+              value={motionType}
+              onChange={(e) => setMotionType(e.target.value as 'consistent' | 'expressive')}
+              className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+            >
+              <option value="consistent">Consistent</option>
+              <option value="expressive">Expressive</option>
+            </select>
+          </div>
+
+          <div>
+            <label htmlFor="prompt" className="block text-sm font-medium text-gray-300 mb-2">
+              Prompt
+            </label>
+            <textarea
+              id="prompt"
+              value={prompt}
+              onChange={(e) => setPrompt(e.target.value)}
+              rows={4}
+              className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+              placeholder="Describe how you want the motion to look..."
+            />
+          </div>
+
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-colors"
+              disabled={isLoading}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => onConfirm(prompt, motionType)}
+              disabled={isLoading || !prompt.trim()}
+              className="px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors inline-flex items-center gap-2"
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Adding Motion...
+                </>
+              ) : (
+                <>
+                  <Wand2 className="h-4 w-4" />
+                  Add Motion
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
@@ -158,7 +210,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
     }
   };
 
-  const handleAddMotion = async () => {
+  const handleAddMotion = async (prompt: string, motionType: 'consistent' | 'expressive') => {
     if (!influencer || !currentUser?.heygenApiKey) return;
 
     setIsAddingMotion(true);
@@ -186,7 +238,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
       const groupId = groupData.data.group_id;
       console.log(`Fetched groupId: ${groupId}`);
 
-      // 2. Add motion to the influencer using group_id
+      // 2. Add motion to the influencer using group_id, prompt, and motionType
       const motionResponse = await fetch(
         'https://api.heygen.com/v2/photo_avatar/add_motion',
         {
@@ -196,7 +248,11 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
             'content-type': 'application/json',
             'x-api-key': currentUser.heygenApiKey
           },
-          body: JSON.stringify({ id: groupId })
+          body: JSON.stringify({ 
+            id: groupId,
+            prompt: prompt,
+            motion_type: motionType
+          })
         }
       );
 
@@ -253,41 +309,10 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
 
   return (
     <>
-      <div className="relative group bg-white/5 backdrop-blur-md border border-white/10 rounded-xl overflow-hidden transition-all duration-200">
-        <div 
-          ref={cardRef}
-          style={{
-            opacity: isInView ? 1 : 0,
-            transform: isInView ? 'translateY(0)' : 'translateY(20px)',
-            transition: 'all 0.3s ease-out'
-          }}
-          className="group relative overflow-hidden rounded-xl aspect-[2/3] bg-[#0D1117]"
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onMouseMove={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = ((e.clientX - rect.left) / rect.width) * 100;
-            const y = ((e.clientY - rect.top) / rect.height) * 100;
-            e.currentTarget.style.setProperty('--mouse-x', `${x}%`);
-            e.currentTarget.style.setProperty('--mouse-y', `${y}%`);
-          }}
-        >
-          {/* Full-bleed Background Image */}
-          {influencer.preview_url ? (
-            <img
-              src={influencer.preview_url}
-              alt={influencer.name}
-              className="absolute inset-0 w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-b from-gray-800 to-gray-900 flex items-center justify-center">
-              <span className="text-gray-400 text-lg">No Preview</span>
-            </div>
-          )}
-
-          {/* Gradient Overlay */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black via-black/50 to-transparent opacity-60 group-hover:opacity-80 transition-opacity duration-300" />
-
+      <CardShell
+        imgSrc={influencer.preview_url}
+        imgAlt={influencer.name}
+      >
           {/* Status Badge */}
           <div className="absolute top-3 left-3 z-10">
             <button
@@ -317,7 +342,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
             <button
               disabled={!!isProcessing}
               onClick={() => !isProcessing && setShowMotionModal(true)}
-              className={`absolute top-3 right-3 z-10 p-2 rounded-full transition-all ${
+              className={`absolute top-3 right-12 z-10 p-2 rounded-full transition-all ${
                 isProcessing
                   ? 'bg-white/10 opacity-50 cursor-not-allowed'
                   : 'bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20'
@@ -338,7 +363,6 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
           </button>
 
           {/* Content Area */}
-          <div className="absolute bottom-0 left-0 right-0 p-4 z-10">
             <h3 className="text-2xl font-bold text-white mb-6 drop-shadow-lg">
               {influencer.name}
             </h3>
@@ -418,9 +442,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
                 </button>
               )}
             </div>
-          </div>
-        </div>
-      </div>
+      </CardShell>
 
       {/* Modals */}
       {showCreateModal && (

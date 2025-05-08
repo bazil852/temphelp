@@ -14,6 +14,8 @@ import {
 } from 'lucide-react';
 import VideoCard from '../components/VideoCard';
 import VideoPlayerModal from '../components/VideoPlayerModal';
+import VideoDetailModal from '../components/VideoDetailModal';
+import type { VideoCardProps } from '../components/VideoCard';
 
 export default function VideosPage() {
   const { currentUser } = useAuthStore();
@@ -25,6 +27,7 @@ export default function VideosPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'generating' | 'failed'>('all');
   const [influencerFilter, setInfluencerFilter] = useState<string>('all');
   const [selectedVideo, setSelectedVideo] = useState<{ url: string; title: string } | null>(null);
+  const [selectedContent, setSelectedContent] = useState<VideoCardProps['content'] | null>(null);
 
   useEffect(() => {
     fetchInfluencers().then(() => {
@@ -206,6 +209,7 @@ export default function VideosPage() {
                 );
               }}
               onAddCaption={handleAddCaption}
+              onOpenModal={setSelectedContent}
             />
           );
         })}
@@ -229,6 +233,15 @@ export default function VideosPage() {
           videoUrl={selectedVideo.url}
           title={selectedVideo.title}
           onClose={() => setSelectedVideo(null)}
+        />
+      )}
+
+      {/* Video Detail Modal */}
+      {selectedContent && (
+        <VideoDetailModal
+          content={selectedContent}
+          onClose={() => setSelectedContent(null)}
+          onAddCaption={handleAddCaption}
         />
       )}
     </div>

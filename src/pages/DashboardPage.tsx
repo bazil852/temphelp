@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Table2, Headset, Loader2, Users, Calendar, Webhook, Bell, Power, Clock, CheckCircle2, XCircle } from 'lucide-react';
+import { Plus, Table2, Headset, Loader2, Users, Calendar, Webhook, Bell, Power, Clock, CheckCircle2, XCircle, Brain, Video, Zap } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { InfluencerCard } from '../components/InfluencerCard';
 import { CloneCard } from '../components/CloneCard';
@@ -19,6 +19,7 @@ import ActiveWebhooksPanel from '../components/ActiveWebhooksPanel';
 import AutomationWidget from '../components/AutomationWidget';
 import ProcessingQueueWidget from '../components/ProcessingQueueWidget';
 import FeaturedContentRow from '../components/FeaturedContentRow';
+import StatCard from '../components/StatCard';
 
 // Add mock data for featured content
 const mockRecentVideos = [
@@ -326,94 +327,42 @@ function DashboardPage() {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
-              className="flex items-center justify-between"
             >
-              <div className="flex flex-col">
-                <div className="text-sm text-gray-400">AI Cloning</div>
-                <div className="text-2xl font-bold text-white">
-                  {limitsLoading ? (
-                    <div className="h-6 w-16 bg-gray-700 rounded animate-pulse"></div>
-                  ) : (
-                    <>
-                      {aiCloningUsed} <span className="text-gray-400">/ {aiCloningLimit === -1 ? '∞' : aiCloningLimit}</span>
-                    </>
-                  )}
-                        </div>
-                      </div>
-                      <div className="w-24">
-                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ 
-                              width: `${aiCloningLimit === -1 ? 100 : (aiCloningUsed / aiCloningLimit) * 100}%`
-                            }}
-                    transition={{ duration: 0.5 }}
-                    className="h-full bg-[#4DE0F9] rounded-full"
-                  />
-                </div>
-              </div>
+              <StatCard
+                icon={<Brain className="h-5 w-5 text-[#4DE0F9]" />}
+                label="AI Cloning"
+                main={limitsLoading ? "..." : `${aiCloningUsed} / ${aiCloningLimit === -1 ? '∞' : aiCloningLimit}`}
+                progress={aiCloningLimit === -1 ? 100 : (aiCloningUsed / aiCloningLimit) * 100}
+              />
             </motion.div>
 
-                {/* Video Minutes Analytics */}
+            {/* Video Minutes Analytics */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.2 }}
-              className="flex items-center justify-between"
             >
-              <div className="flex flex-col">
-                <div className="text-sm text-gray-400">Video Minutes</div>
-                <div className="text-2xl font-bold text-white">
-                  {limitsLoading ? (
-                    <div className="h-6 w-16 bg-gray-700 rounded animate-pulse"></div>
-                  ) : (
-                    <>
-                          {videoMinutesUsed || 0} <span className="text-gray-400">/ {videoMinutesLimit === -1 ? '∞' : videoMinutesLimit}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="w-24">
-                <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
-                  <motion.div
-                    initial={{ width: 0 }}
-                    animate={{ 
-                      width: `${videoMinutesLimit === -1 ? 100 : (videoMinutesUsed / videoMinutesLimit) * 100}%`
-                    }}
-                    transition={{ duration: 0.5 }}
-                    className="h-full bg-[#4DE0F9] rounded-full"
-                  />
-                </div>
-              </div>
+              <StatCard
+                icon={<Video className="h-5 w-5 text-[#4DE0F9]" />}
+                label="Video Minutes"
+                main={limitsLoading ? "..." : `${videoMinutesUsed || 0} / ${videoMinutesLimit === -1 ? '∞' : videoMinutesLimit}`}
+                progress={videoMinutesLimit === -1 ? 100 : (videoMinutesUsed / videoMinutesLimit) * 100}
+              />
             </motion.div>
 
-                {/* Automations Analytics */}
+            {/* Automations Analytics */}
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
-              className="flex items-center justify-between"
             >
-              <div className="flex flex-col">
-                <div className="text-sm text-gray-400">Automations</div>
-                <div className="flex items-center gap-2">
-                  <div className={`w-2 h-2 rounded-full ${
-                    automationsEnabled ? 'bg-[#4DE0F9]' : 'bg-gray-600'
-                  }`} />
-                  <div className="text-2xl font-bold text-white">
-                  {limitsLoading ? (
-                    <div className="h-6 w-16 bg-gray-700 rounded animate-pulse"></div>
-                  ) : (
-                      automationsEnabled ? 'Enabled' : 'Disabled'
-                    )}
-                          </div>
-                        </div>
-                      </div>
-                      <div className={`w-4 h-4 rounded-full ${
-                          automationsEnabled 
-                            ? 'bg-[#4DE0F9] animate-[pulse_2s_infinite]' 
-                            : 'bg-gray-600'
-                        }`} />
+              <StatCard
+                icon={<Zap className="h-5 w-5 text-[#4DE0F9]" />}
+                label="Automations"
+                main={automationsEnabled ? "Enabled" : "Disabled"}
+                helper={automationsEnabled ? "Ready to use" : "Upgrade to enable"}
+                pulse={automationsEnabled}
+              />
             </motion.div>
           </div>
         </motion.div>

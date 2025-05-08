@@ -23,6 +23,8 @@ import CreatePhotoAvatarPage from './pages/CreatePhotoAvatarPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import InfluencersPage from './pages/InfluencersPage';
 import VideosPage from './pages/VideosPage';
+import WorkflowPage from './pages/WorkflowPage';
+import PodcastStudioPage from './pages/PodcastStudioPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.currentUser);
@@ -188,12 +190,28 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="workflow"
+            element={
+              <ProtectedRoute>
+                <WorkflowPage />
+              </ProtectedRoute>
+            }
+          />
           <Route path="/update-plan" element={<UpdatePlan />} />
           <Route
             path="create-ai-clone"
             element={
               <ProtectedRoute>
                 <CreateAiClonePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="podcast-studio"
+            element={
+              <ProtectedRoute>
+                <PodcastStudioPage />
               </ProtectedRoute>
             }
           />

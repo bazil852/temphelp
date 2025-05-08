@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Maximize2, Check } from 'lucide-react';
+import { X, Loader2, Maximize2, Check, Brush } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface AddLookModalProps {
   onClose: () => void;
@@ -9,6 +10,7 @@ interface AddLookModalProps {
     id: string;
     templateId: string;
     name: string;
+    voice_id?: string;
   };
 }
 
@@ -36,6 +38,7 @@ export default function AddLookModal({ onClose, influencer }: AddLookModalProps)
   const [groupId, setGroupId] = useState<string | null>(null);
   const [lookName, setLookName] = useState('');
   const { currentUser } = useAuthStore();
+  const [showGeneratedSection, setShowGeneratedSection] = useState(false);
 
   console.log("Influnecer: ",influencer);
 
@@ -131,6 +134,7 @@ export default function AddLookModal({ onClose, influencer }: AddLookModalProps)
     setSelectedImageIndexes([]);
     setGenerationId(null);
     setError('');
+    setShowGeneratedSection(true);
 
     try {
       const response = await fetch(
@@ -221,226 +225,267 @@ export default function AddLookModal({ onClose, influencer }: AddLookModalProps)
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-lg w-full max-w-7xl p-6 my-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Form Section */}
-          <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 max-h-[80vh] overflow-y-auto">
-            <div className="flex justify-between items-start mb-6">
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Create New Look
-                </h2>
-                <p className="mt-1 text-sm text-gray-500">
-                  Customize the appearance for {influencer.name}
-                </p>
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center p-4 z-50 overflow-y-auto"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 20 }}
+          transition={{ duration: 0.2 }}
+          className={`bg-[#1a1a1a] rounded-xl p-6 my-8 border border-white/10 transition-all duration-300 ${
+            showGeneratedSection ? 'w-full max-w-[63rem]' : 'w-full max-w-[28.8rem]'
+          }`}
+        >
+          <div className={`grid gap-8 ${
+            showGeneratedSection ? 'grid-cols-1 lg:grid-cols-2' : 'grid-cols-1'
+          }`}>
+            {/* Form Section */}
+            <div className="bg-white/5 backdrop-blur-md rounded-xl shadow-xl p-6 overflow-y-auto border border-white/10 max-h-[calc(100vh-8rem)]">
+              <div className="flex justify-between items-start mb-6 sticky top-0 bg-[#1a1a1a] z-10 pb-4">
+                <div>
+                  <h2 className="text-xl font-semibold text-white">
+                    Create New Look
+                  </h2>
+                  <p className="mt-1 text-sm text-gray-400">
+                    Customize the appearance for {influencer.name}
+                  </p>
+                </div>
+                <button
+                  onClick={onClose}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  <X className="h-5 w-5" />
+                </button>
               </div>
-              <button
-                onClick={onClose}
-                className="text-gray-400 hover:text-gray-500"
-              >
-                <X className="h-5 w-5" />
-              </button>
+
+              {error && (
+                <div className="mb-4 p-3 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20">
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} className="space-y-6 pb-4">
+                <div className="grid grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Orientation</label>
+                    <select
+                      value={orientation}
+                      onChange={(e) => setOrientation(e.target.value as typeof ORIENTATION_OPTIONS[number])}
+                      className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                    >
+                      {ORIENTATION_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Pose</label>
+                    <select
+                      value={pose}
+                      onChange={(e) => setPose(e.target.value as typeof POSE_OPTIONS[number])}
+                      className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                    >
+                      {POSE_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">Style</label>
+                    <select
+                      value={style}
+                      onChange={(e) => setStyle(e.target.value as typeof STYLE_OPTIONS[number])}
+                      className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                    >
+                      {STYLE_OPTIONS.map(option => (
+                        <option key={option} value={option}>{option}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label htmlFor="prompt" className="block text-sm font-medium text-gray-300 mb-2">
+                    Prompt
+                  </label>
+                  <textarea
+                    id="prompt"
+                    value={prompt}
+                    onChange={(e) => setPrompt(e.target.value)}
+                    rows={6}
+                    className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                    placeholder="Describe the look you want to create..."
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="lookName" className="block text-sm font-medium text-gray-300 mb-2">
+                    Look Name
+                  </label>
+                  <input
+                    type="text"
+                    id="lookName"
+                    value={lookName}
+                    onChange={(e) => setLookName(e.target.value)}
+                    className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+                    placeholder="Enter a name for this look set..."
+                    required
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !prompt.trim() || !groupId}
+                    className="px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors inline-flex items-center"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
+                        Generating...
+                      </>
+                    ) : (
+                      'Generate Looks'
+                    )}
+                  </button>
+                </div>
+              </form>
             </div>
 
-            {error && (
-              <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6 pb-4">
-              <div className="grid grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Orientation</label>
-                  <select
-                    value={orientation}
-                    onChange={(e) => setOrientation(e.target.value as typeof ORIENTATION_OPTIONS[number])}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  >
-                    {ORIENTATION_OPTIONS.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Pose</label>
-                  <select
-                    value={pose}
-                    onChange={(e) => setPose(e.target.value as typeof POSE_OPTIONS[number])}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  >
-                    {POSE_OPTIONS.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">Style</label>
-                  <select
-                    value={style}
-                    onChange={(e) => setStyle(e.target.value as typeof STYLE_OPTIONS[number])}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  >
-                    {STYLE_OPTIONS.map(option => (
-                      <option key={option} value={option}>{option}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="prompt" className="block text-sm font-medium text-gray-700 mb-2">
-                  Prompt
-                </label>
-                <textarea
-                  id="prompt"
-                  value={prompt}
-                  onChange={(e) => setPrompt(e.target.value)}
-                  rows={6}
-                  className="block w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                  placeholder="Describe the look you want to create..."
-                  required
-                />
-              </div>
-
-              <div>
-                <label htmlFor="lookName" className="block text-sm font-medium text-gray-700 mb-2">
-                  Look Name
-                </label>
-                <input
-                  type="text"
-                  id="lookName"
-                  value={lookName}
-                  onChange={(e) => setLookName(e.target.value)}
-                  className="block w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-base focus:border-blue-500 focus:ring-blue-500 transition-colors"
-                  placeholder="Enter a name for this look set..."
-                  required
-                />
-              </div>
-
-              <div className="flex justify-end gap-3">
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-4 py-2 border-2 border-gray-300 rounded-lg text-base font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+            {/* Generated Images Section - Only show after clicking Generate */}
+            <AnimatePresence>
+              {showGeneratedSection && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  transition={{ duration: 0.2 }}
+                  className="bg-white/5 backdrop-blur-md rounded-xl shadow-xl p-6 overflow-y-auto border border-white/10 max-h-[calc(100vh-8rem)]"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !prompt.trim() || !groupId}
-                  className="px-4 py-2 bg-blue-600 text-black rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors inline-flex items-center"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                      Generating...
-                    </>
-                  ) : (
-                    'Generate Looks'
-                  )}
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Generated Images Section */}
-          <div className="bg-[#1a1a1a] rounded-xl shadow-xl p-6 max-h-[80vh] overflow-y-auto">
-            <h2 className="text-xl font-semibold text-gray-900 mb-6">Generated Looks</h2>
-            
-            {isPolling ? (
-              <div className="flex flex-col items-center justify-center h-[600px]">
-                <Loader2 className="w-12 h-12 animate-spin text-[#c9fffc] mb-4" />
-                <p className="text-gray-400">Generating your looks...</p>
-              </div>
-            ) : generatedImages ? (
-              <div className="space-y-6">
-                <div className="grid grid-cols-2 gap-4">
-                  {generatedImages.urls.map((url, index) => (
-                    <div
-                      key={generatedImages.keys[index]}
-                      className={`relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
-                        selectedImageIndexes.includes(index)
-                          ? 'border-[#c9fffc] shadow-lg scale-105' 
-                          : 'border-gray-700 hover:border-gray-500'
-                      }`}
-                      onClick={() => {
-                        setSelectedImageIndexes(prev => 
-                          prev.includes(index)
-                            ? prev.filter(i => i !== index)
-                            : [...prev, index]
-                        );
-                      }}
-                    >
-                      {selectedImageIndexes.includes(index) && (
-                        <div className="absolute top-2 left-2 z-[90] bg-[#c9fffc] rounded-full p-1">
-                          <Check className="h-4 w-4 text-black" />
+                  <h2 className="text-xl font-semibold text-white mb-6 sticky top-0 bg-[#1a1a1a] z-10 pb-4">Generated Looks</h2>
+                  
+                  {isPolling ? (
+                    <div className="flex flex-col items-center justify-center h-[600px]">
+                      <Loader2 className="w-12 h-12 animate-spin text-[#c9fffc] mb-4" />
+                      <p className="text-gray-400">Generating your looks...</p>
+                    </div>
+                  ) : generatedImages ? (
+                    <div className="space-y-6">
+                      <div className="grid grid-cols-2 gap-4">
+                        {generatedImages.urls.map((url, index) => (
+                          <div
+                            key={generatedImages.keys[index]}
+                            className={`relative rounded-lg overflow-hidden border-2 transition-all cursor-pointer ${
+                              selectedImageIndexes.includes(index)
+                                ? 'border-[#c9fffc] shadow-lg scale-105' 
+                                : 'border-white/20 hover:border-white/40'
+                            }`}
+                            onClick={() => {
+                              setSelectedImageIndexes(prev => 
+                                prev.includes(index)
+                                  ? prev.filter(i => i !== index)
+                                  : [...prev, index]
+                              );
+                            }}
+                          >
+                            {selectedImageIndexes.includes(index) && (
+                              <div className="absolute top-2 left-2 z-[90] bg-[#c9fffc] rounded-full p-1">
+                                <Check className="h-4 w-4 text-black" />
+                              </div>
+                            )}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setExpandedImageUrl(url);
+                              }}
+                              className="absolute top-2 right-2 p-1 bg-black/50 rounded-full hover:bg-black/75 transition-opacity z-[90]"
+                            >
+                              <Maximize2 className="h-4 w-4 text-white" />
+                            </button>
+                            <img 
+                              src={url} 
+                              alt={`Generated look ${index + 1}`}
+                              className="w-full aspect-square object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      {selectedImageIndexes.length > 0 && (
+                        <div className="flex justify-center sticky bottom-0 bg-[#1a1a1a] pt-4">
+                          <button
+                            onClick={handleCreateLook}
+                            disabled={isSubmitting || !lookName}
+                            className="px-6 py-3 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors font-medium flex items-center"
+                          >
+                            {isSubmitting ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Creating Look...
+                              </>
+                            ) : (
+                              `Create ${selectedImageIndexes.length} Look${selectedImageIndexes.length > 1 ? 's' : ''}`
+                            )}
+                          </button>
                         </div>
                       )}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setExpandedImageUrl(url);
-                        }}
-                        className="absolute top-2 right-2 p-1 bg-black bg-opacity-50 rounded-full hover:bg-opacity-75 transition-opacity z-[90]"
-                      >
-                        <Maximize2 className="h-4 w-4 text-white" />
-                      </button>
-                      <img 
-                        src={url} 
-                        alt={`Generated look ${index + 1}`}
-                        className="w-full aspect-square object-cover"
-                      />
                     </div>
-                  ))}
-                </div>
-                {selectedImageIndexes.length > 0 && (
-                  <div className="flex justify-center">
-                    <button
-                      onClick={handleCreateLook}
-                      disabled={isSubmitting || !lookName}
-                      className="px-6 py-3 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors font-medium flex items-center"
-                    >
-                      {isSubmitting ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Creating Look...
-                        </>
-                      ) : (
-                        `Create ${selectedImageIndexes.length} Look${selectedImageIndexes.length > 1 ? 's' : ''}`
-                      )}
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center h-[600px] text-gray-400">
-                <p>Generated looks will appear here</p>
-              </div>
-            )}
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-[600px] text-gray-400">
+                      <Brush className="w-12 h-12 mb-4 text-gray-500" />
+                      <p>Generated looks will appear here</p>
+                    </div>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
-        </div>
-      </div>
+        </motion.div>
 
-      {/* Expanded Image Modal */}
-      {expandedImageUrl && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-[100] p-4">
-          <div className="relative max-w-4xl w-full">
-            <button
-              onClick={() => setExpandedImageUrl(null)}
-              className="absolute top-4 right-4 bg-black bg-opacity-50 p-2 rounded-full text-white hover:bg-opacity-75 transition-all"
+        {/* Expanded Image Modal */}
+        <AnimatePresence>
+          {expandedImageUrl && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[100] p-4"
             >
-              <X className="h-6 w-6" />
-            </button>
-            <img
-              src={expandedImageUrl}
-              alt="Expanded look"
-              className="w-full h-auto rounded-lg"
-            />
-          </div>
-        </div>
-      )}
-    </div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2 }}
+                className="relative max-w-4xl w-full"
+              >
+                <button
+                  onClick={() => setExpandedImageUrl(null)}
+                  className="absolute top-4 right-4 bg-black/50 p-2 rounded-full text-white hover:bg-black/75 transition-all"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+                <img
+                  src={expandedImageUrl}
+                  alt="Expanded look"
+                  className="w-full h-auto rounded-lg"
+                />
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
+    </AnimatePresence>
   );
 }

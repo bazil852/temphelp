@@ -22,8 +22,6 @@ interface Tab {
 }
 
 const gridLayouts = [
-  { value: 1, icon: List, label: 'Single' },
-  { value: 2, icon: Rows, label: '2 Columns' },
   { value: 3, icon: LayoutGrid, label: '3 Columns' },
   { value: 4, icon: Columns, label: '4 Columns' },
   { value: 5, icon: Layout, label: '5 Columns' },

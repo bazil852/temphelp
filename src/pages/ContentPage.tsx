@@ -20,6 +20,7 @@ import CreateVideoModal from "../components/CreateVideoModal";
 import BulkCreateModal from "../components/BulkCreateModal";
 import WebhookModal from "../components/WebhookModal";
 import VideoCard from "../components/VideoCard";
+import { useAuthStore } from '../store/authStore';
 
 interface ContentPageProps {
   isClone?: boolean;
@@ -39,6 +40,7 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
   const [clone, setClone] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const entityType = isClone ? 'clone' : 'influencer';
+  const { currentUser } = useAuthStore();
   
   useEffect(() => {
     if (isClone) {
