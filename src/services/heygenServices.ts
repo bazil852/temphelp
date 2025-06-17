@@ -1,4 +1,5 @@
-import { supabase } from '../lib/supabase';
+import { supabase } from "../lib/supabase";
+import imageCompression from 'browser-image-compression';
 import { AvatarFormData } from '../constants/avatarOptions';
 import { env } from '../lib/env';
 
@@ -134,10 +135,32 @@ export const uploadImageToSupabase = async (imageUrl: string) => {
     const response = await fetch(imageUrl);
     const blob = await response.blob();
     const filename = `avatars/${crypto.randomUUID()}.jpg`;
+
+    // Convert blob to file for compression
+    const imageFile = new File([blob], filename, { type: blob.type });
+
+    console.log('Original file instanceof File', imageFile instanceof File);
+    console.log(`Original file size ${imageFile.size / 1024 / 1024} MB`);
+
+    const options = {
+      maxSizeMB: 1,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+    };
+
+    let compressedFile = imageFile;
+    try {
+      compressedFile = await imageCompression(imageFile, options);
+      console.log('Compressed file instanceof File', compressedFile instanceof File);
+      console.log(`Compressed file size ${compressedFile.size / 1024 / 1024} MB`);
+    } catch (compressionError) {
+      console.error('Image compression failed:', compressionError);
+      // Proceed with original file if compression fails
+    }
     
     const { data, error } = await supabase.storage
       .from('influencer-images')
-      .upload(filename, blob);
+      .upload(filename, compressedFile);
 
     if (error) throw error;
 

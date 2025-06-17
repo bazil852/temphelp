@@ -18,6 +18,11 @@ import { ActionNode } from './nodes/ActionNode';
 import { FilterNode } from './nodes/FilterNode';
 import { GenAiNode } from './nodes/GenAiNode';
 import { ReturnNode } from './nodes/ReturnNode';
+import { LoopNode } from './nodes/LoopNode';
+import { SwitchNode } from './nodes/SwitchNode';
+import { HttpRequestNode } from './nodes/HttpRequestNode';
+import { SequenceNode } from './nodes/SequenceNode';
+import { DelayNode } from './nodes/DelayNode';
 import { NodeSidebar } from './NodeSidebar';
 import { NodeProperties } from './NodeProperties';
 
@@ -59,6 +64,11 @@ const nodeTypes = {
   filter: FilterNode,
   'gen-ai': GenAiNode,
   return: ReturnNode,
+  loop: LoopNode,
+  switch: SwitchNode,
+  'http-request': HttpRequestNode,
+  sequence: SequenceNode,
+  delay: DelayNode,
 };
 
 export default function WorkflowBuilder() {
@@ -86,14 +96,42 @@ export default function WorkflowBuilder() {
   }, []);
 
   const handleNodeAdd = (nodeType: string) => {
+    const getNodeLabel = (type: string) => {
+      switch (type) {
+        case 'trigger': return 'Webhook Trigger';
+        case 'action': return 'Generate Video';
+        case 'gen-ai': return 'AI Processing';
+        case 'http-request': return 'HTTP Request';
+        case 'switch': return 'Conditional Switch';
+        case 'loop': return 'For Each Loop';
+        case 'sequence': return 'Sequence';
+        case 'delay': return 'Wait';
+        case 'filter': return 'Filter Data';
+        case 'return': return 'Return Response';
+        default: return type.charAt(0).toUpperCase() + type.slice(1);
+      }
+    };
+
+    const getNodeConfig = (type: string) => {
+      switch (type) {
+        case 'action': return { action: 'generate_video' };
+        case 'http-request': return { method: 'GET', url: '' };
+        case 'switch': return { field: '', conditions: [] };
+        case 'loop': return { iterations: 10, collection: '', itemName: 'item' };
+        case 'sequence': return { branches: 2, waitForAll: true, continueOnError: false };
+        case 'delay': return { duration: 5, unit: 'seconds' };
+        default: return {};
+      }
+    };
+
     const newNode: Node<NodeData> = {
       id: `${nodeType}-${Date.now()}`,
       type: nodeType,
       position: { x: 100, y: 100 },
       data: {
-        label: nodeType === 'action' ? 'Generate Video' : nodeType.charAt(0).toUpperCase() + nodeType.slice(1),
+        label: getNodeLabel(nodeType),
         type: nodeType,
-        config: nodeType === 'action' ? { action: 'generate_video' } : {},
+        config: getNodeConfig(nodeType),
       },
     };
     setNodes((nds) => [...nds, newNode]);
@@ -139,7 +177,9 @@ export default function WorkflowBuilder() {
           nodeTypes={nodeTypes}
           fitView
           className="bg-transparent"
+          className="bg-transparent"
         >
+          <Background color="#c9fffc" gap={16} size={1} />
           <Background color="#c9fffc" gap={16} size={1} />
           <Controls />
         </ReactFlow>
@@ -151,6 +191,8 @@ export default function WorkflowBuilder() {
           node={selectedNode}
           onClose={() => setSelectedNode(null)}
           onUpdate={(config) => handleNodeConfigUpdate(selectedNode.id, config)}
+          nodes={nodes}
+          edges={edges}
           nodes={nodes}
           edges={edges}
         />

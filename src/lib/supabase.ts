@@ -318,3 +318,37 @@ export const uploadAudioToSupabase = async (audioBlob: Blob): Promise<string> =>
     throw error;
   }
 };
+
+/**
+ * Downloads a video from an external URL and uploads it to Supabase storage
+ * Used to store videos from HeyGen or Captions.ai in our own bucket
+ */
+export const uploadVideoFromUrlToSupabase = async (videoUrl: string): Promise<string> => {
+  try {
+    // Download the video from the external URL
+    const response = await fetch(videoUrl);
+    if (!response.ok) throw new Error('Failed to download video from external URL');
+    
+    const videoBlob = await response.blob();
+    
+    // Generate a unique filename
+    const filename = `${crypto.randomUUID()}.mp4`;
+    
+    // Upload to Supabase Storage in the influencers_content_videos bucket
+    const { data, error } = await supabase.storage
+      .from('influencers_content_videos')
+      .upload(filename, videoBlob);
+
+    if (error) throw error;
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('influencers_content_videos')
+      .getPublicUrl(filename);
+
+    return publicUrl;
+  } catch (error) {
+    console.error("Error processing video:", error);
+    throw error;
+  }
+};

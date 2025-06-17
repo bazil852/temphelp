@@ -1,22 +1,26 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTranscript } from '../context/TranscriptContext';
 import { useInfluencer } from '../context/InfluencerContext';
-import { useContentStore } from '../store/contentStore';
 import { Play, Video, Pencil, Loader2, AlertCircle, Volume2, Waves } from 'lucide-react';
 import VideoPlayerModal from './VideoPlayerModal';
 import Waveform from './Waveform';
+import VideoProgressBar from './VideoProgressBar';
+import CompletedVideosGrid from './CompletedVideosGrid';
 import { uploadAudioToSupabase } from '../lib/supabase';
 import { supabase } from '../lib/supabase';
 import { useAuthStore } from '../store/authStore';
+import { useVideoGeneration } from '../hooks/useVideoGeneration';
 
 // Status badge component with updated styling
-type Status = 'pending' | 'processing' | 'completed' | 'failed';
+type Status = 'pending' | 'processing' | 'completed' | 'failed' | 'generating' | 'error';
 
 const STATUS_LABEL: Record<Status, string> = {
   pending:     'Pending',
   processing:  'Processing',
   completed:   'Completed',
   failed:      'Failed',
+  generating:  'Generating',
+  error:       'Error',
 };
 
 const STATUS_STYLES: Record<Status, string> = {
@@ -24,6 +28,8 @@ const STATUS_STYLES: Record<Status, string> = {
   processing: 'bg-cyan-400 text-white',
   completed: 'bg-green-400 text-white',
   failed: 'bg-red-400 text-white',
+  generating: 'bg-blue-400 text-white',
+  error: 'bg-red-400 text-white',
 };
 
 const StatusBadge = ({ status = 'pending' }: { status?: Status }) => (
@@ -34,11 +40,11 @@ const StatusBadge = ({ status = 'pending' }: { status?: Status }) => (
 
 
 interface LineStatus {
-  status: 'pending' | 'processing' | 'completed' | 'failed';
+  status: Status;
+  audioUrl?: string; // Local blob URL for playback
+  backendAudioUrl?: string; // Backend URL for video generation
   videoUrl?: string;
-  audioUrl?: string;
   error?: string;
-  contentId?: string;
 }
 
 interface AudioGenerationStatus {
@@ -46,24 +52,61 @@ interface AudioGenerationStatus {
   error?: string;
 }
 
+interface VideoGenerationParams {
+  lineId: number;
+  isPreview: boolean;
+  script: string;
+  influencerId: string;
+}
+
+interface VideoGenerationResponse {
+  success: boolean;
+  error?: string;
+  videoUrl?: string;
+}
+
 export default function VideoGenerationTab() {
   const { lines } = useTranscript();
   const { currentUser } = useAuthStore();
   const { name1, name2, selectedInfluencer1, selectedInfluencer2 } = useInfluencer();
-  const { generateVideo } = useContentStore();
   const [lineStatuses, setLineStatuses] = useState<Record<number, LineStatus>>({});
   const [selectedVideo, setSelectedVideo] = useState<{ url: string; title: string } | null>(null);
   const videoRefs = useRef<Record<number, HTMLVideoElement | null>>({});
   const [playingStates, setPlayingStates] = useState<Record<number, boolean>>({});
   const [audioGenerationStatuses, setAudioGenerationStatuses] = useState<Record<number, AudioGenerationStatus>>({});
   const [isGeneratingAllAudios, setIsGeneratingAllAudios] = useState(false);
+  
+  // Video generation hook
+  const {
+    startVideoGeneration,
+    progress,
+    completedVideos,
+    status: videoGenerationStatus,
+    error: videoGenerationError,
+    resetGeneration,
+    cleanup
+  } = useVideoGeneration();
 
-  const keepStatus = (prev: Record<number, LineStatus>, id: number): LineStatus =>
-    ({ status: prev[id]?.status ?? 'pending', ...prev[id] });
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      cleanup();
+    };
+  }, [cleanup]);
+
+  const keepStatus = (prev: Record<number, LineStatus>, id: number): LineStatus => ({
+    status: prev[id]?.status ?? 'pending',
+    audioUrl: prev[id]?.audioUrl,
+    backendAudioUrl: prev[id]?.backendAudioUrl,
+    videoUrl: prev[id]?.videoUrl,
+    error: prev[id]?.error
+  });
 
   const generateAudioForLine = async (rowKey: number, script: string, influencer: any): Promise<string> => {
-    if (!influencer?.voice_id) {
-      throw new Error('No voice ID available for this influencer');
+    console.log('generateAudioForLine called with:', { rowKey, script, influencer });
+    
+    if (!influencer?.id) {
+      throw new Error('No influencer ID available');
     }
 
     setAudioGenerationStatuses(prev => ({
@@ -71,17 +114,30 @@ export default function VideoGenerationTab() {
       [rowKey]: { isGenerating: true }
     }));
 
+    setLineStatuses(prev => ({
+      ...prev,
+      [rowKey]: {
+        ...keepStatus(prev, rowKey),
+        status: 'generating'
+      }
+    }));
+
     try {
-      const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${influencer.voice_id}?output_format=mp3_44100_128`, {
+      const requestBody = {
+        text: script,
+        influencerId: influencer.id,
+        lineId: rowKey
+      };
+      
+      console.log('Sending audio generation request:', requestBody);
+      console.log('Request body stringified:', JSON.stringify(requestBody));
+      
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/podcast/generate-audio`, {
         method: 'POST',
         headers: {
-          'xi-api-key': import.meta.env.VITE_ELEVEN,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          text: script,
-          model_id: 'eleven_multilingual_v2'
-        })
+        body: JSON.stringify(requestBody)
       });
 
       if (!response.ok) {
@@ -89,14 +145,21 @@ export default function VideoGenerationTab() {
         throw new Error(error.message || 'Failed to generate audio');
       }
 
-      const audioBlob = await response.blob();
-      const publicUrl = await uploadAudioToSupabase(audioBlob);
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error('Backend failed to generate audio');
+      }
+
+      // Create a local URL for the audio
+      const audioResponse = await fetch(data.audioUrl);
+      const audioBlob = await audioResponse.blob();
       const localUrl = URL.createObjectURL(audioBlob);
 
       setLineStatuses(prev => ({
         ...prev,
         [rowKey]: {
           ...keepStatus(prev, rowKey),
+          status: 'completed',
           audioUrl: localUrl,
         },
       }));
@@ -106,9 +169,26 @@ export default function VideoGenerationTab() {
         [rowKey]: { isGenerating: false }
       }));
       
-      return publicUrl;
+      // Store the backend audio URL for video generation
+      setLineStatuses(prev => ({
+        ...prev,
+        [rowKey]: {
+          ...keepStatus(prev, rowKey),
+          backendAudioUrl: data.audioUrl // Store backend URL separately
+        }
+      }));
+      
+      return data.audioUrl;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to generate audio';
+      setLineStatuses(prev => ({
+        ...prev,
+        [rowKey]: {
+          ...keepStatus(prev, rowKey),
+          status: 'error',
+          error: errorMessage
+        }
+      }));
       setAudioGenerationStatuses(prev => ({
         ...prev,
         [rowKey]: { isGenerating: false, error: errorMessage }
@@ -122,25 +202,66 @@ export default function VideoGenerationTab() {
     const errors: { lineId: number; error: string }[] = [];
 
     try {
-      // Create an array of promises for all audio generations
-      const audioPromises = lines.map(async (line) => {
-        const influencer = line.speaker === name1 ? selectedInfluencer1 : selectedInfluencer2;
-        if (!influencer?.voice_id) {
-          throw new Error(`No voice ID found for ${line.speaker}`);
+      // Prepare the request body
+      const requestBody = {
+        lines: lines.map(line => ({
+          speaker: line.speaker,
+          text: line.text,
+          line_id: line.id
+        })),
+        influencerMapping: {
+          [name1]: selectedInfluencer1?.id,
+          [name2]: selectedInfluencer2?.id
         }
+      };
 
-        try {
-          await generateAudioForLine(line.id, line.text, influencer);
-        } catch (error) {
-          errors.push({
-            lineId: line.id,
-            error: error instanceof Error ? error.message : 'Failed to generate audio'
-          });
-        }
+      // Call the batch audio generation endpoint
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/podcast/generate-all-audios`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
       });
 
-      // Wait for all audio generations to complete
-      await Promise.all(audioPromises);
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to generate all audios');
+      }
+
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error('Backend failed to generate all audios');
+      }
+
+      // Process each generated audio file
+      for (const audioFile of data.audioFiles) {
+        try {
+          // Create a local URL for the audio
+          const audioResponse = await fetch(audioFile.audioUrl);
+          const audioBlob = await audioResponse.blob();
+          const localUrl = URL.createObjectURL(audioBlob);
+          
+          console.log(`Created audio URL for line ${audioFile.lineId}:`, localUrl);
+          console.log(`Audio blob size:`, audioBlob.size);
+
+          setLineStatuses(prev => ({
+            ...prev,
+            [audioFile.lineId]: {
+              ...keepStatus(prev, audioFile.lineId),
+              status: 'completed',
+              audioUrl: localUrl,
+              backendAudioUrl: audioFile.audioUrl,
+            },
+          }));
+        } catch (error) {
+          console.error(`Failed to process audio for line ${audioFile.lineId}:`, error);
+          errors.push({
+            lineId: audioFile.lineId,
+            error: error instanceof Error ? error.message : 'Failed to process audio file'
+          });
+        }
+      }
 
       // If there were any errors, show them in the UI
       if (errors.length > 0) {
@@ -153,118 +274,87 @@ export default function VideoGenerationTab() {
     }
   };
 
-  const generateVideoForLine = async (rowKey: number, isPreview: boolean = false) => {
-    const line = lines[rowKey];
+  const generateVideoAPI = async (params: VideoGenerationParams): Promise<VideoGenerationResponse> => {
+    const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/podcast/generate-video`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(params)
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      return {
+        success: false,
+        error: error.message || 'Failed to generate video'
+      };
+    }
+
+    const data = await response.json();
+    return {
+      success: true,
+      videoUrl: data.videoUrl
+    };
+  };
+
+  const generateVideoForLine = async (rowKey: number, isPreview: boolean) => {
+    const line = lines.find(l => l.id === rowKey);
     if (!line) return;
 
-    const influencer = line.speaker === name1 ? selectedInfluencer1 : selectedInfluencer2;
-    if (!influencer?.templateId) {
-      console.error('No template ID found for influencer');
+    const influencerId = line.speaker === name1 ? selectedInfluencer1?.id : selectedInfluencer2?.id;
+    if (!influencerId) {
+      setLineStatuses(prev => ({
+        ...prev,
+        [rowKey]: {
+          ...keepStatus(prev, rowKey),
+          status: 'error',
+          error: 'No influencer ID found'
+        }
+      }));
       return;
     }
 
     setLineStatuses(prev => ({
       ...prev,
-      [rowKey]: { status: 'processing' }
+      [rowKey]: {
+        ...keepStatus(prev, rowKey),
+        status: 'generating'
+      }
     }));
 
     try {
-      // First generate and upload the audio
-      const publicAudioUrl = await generateAudioForLine(rowKey, line.text, influencer);
-      
-      // Get audio duration for billing
-      const audio = new Audio(publicAudioUrl);
-      let audioDuration = 0;
-      await new Promise((resolve) => {
-        audio.addEventListener('loadedmetadata', () => {
-          audioDuration = audio.duration;
-          resolve(null);
-        });
-      });
+          const response = await generateVideoAPI({
+      lineId: rowKey,
+      isPreview,
+      script: line.text,
+      influencerId
+    });
 
-      // Convert to minutes and round up
-      const durationInMinutes = Math.ceil(audioDuration / 60);
-
-      // Update video minutes usage
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('auth_user_id')
-        .eq('email', currentUser?.email)
-        .single();
-
-      if (userError) throw new Error('Failed to get user data');
-
-      const { error: usageError } = await supabase.rpc('increment_user_video_minutes', {
-        p_user_id: userData.auth_user_id,
-        increment_value: durationInMinutes
-      });
-
-      if (usageError) {
-        throw new Error('Failed to update video minutes usage');
+      if (!response.success) {
+        throw new Error(response.error || 'Failed to generate video');
       }
 
-      // Generate video with the audio URL
-      await generateVideo({
-        influencerId: influencer.id,
-        templateId: influencer.templateId,
-        script: line.text,
-        title: `${line.speaker} - Line ${rowKey}${isPreview ? ' (Preview)' : ''}`,
-        audioUrl: publicAudioUrl
-      });
+      if (!response.videoUrl) {
+        throw new Error('No video URL returned');
+      }
 
-      // Store the processing state
       setLineStatuses(prev => ({
         ...prev,
-        [rowKey]: { 
-          status: 'processing',
-          audioUrl: publicAudioUrl
+        [rowKey]: {
+          ...keepStatus(prev, rowKey),
+          status: 'completed',
+          videoUrl: response.videoUrl
         }
       }));
-
-      // Start polling for video completion using the influencer ID
-      const pollInterval = setInterval(async () => {
-        const { data: contents } = await supabase
-          .from('contents')
-          .select('*')
-          .eq('influencer_id', influencer.id)
-          .order('created_at', { ascending: false })
-          .limit(1);
-
-        const latestContent = contents?.[0];
-        
-        if (latestContent?.status === 'completed') {
-          clearInterval(pollInterval);
-          setLineStatuses(prev => ({
-            ...prev,
-            [rowKey]: { 
-              status: 'completed',
-              videoUrl: latestContent.url,
-              audioUrl: publicAudioUrl,
-              contentId: latestContent.id
-            }
-          }));
-        } else if (latestContent?.status === 'failed') {
-          clearInterval(pollInterval);
-          setLineStatuses(prev => ({
-            ...prev,
-            [rowKey]: { 
-              status: 'failed',
-              error: latestContent.error || 'Video generation failed',
-              contentId: latestContent.id
-            }
-          }));
-        }
-      }, 5000);
-
-      // Cleanup interval on component unmount
-      return () => clearInterval(pollInterval);
-
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to generate video';
       setLineStatuses(prev => ({
         ...prev,
-        [rowKey]: { 
-          status: 'failed',
-          error: error instanceof Error ? error.message : 'Failed to generate video'
+        [rowKey]: {
+          ...keepStatus(prev, rowKey),
+          status: 'error',
+          error: errorMessage
         }
       }));
     }
@@ -299,13 +389,51 @@ export default function VideoGenerationTab() {
   };
 
   const generateAllVideos = async () => {
-    for (const line of lines) {
-      await generateVideoForLine(line.id, false);
+    // Get lines that have audio generated
+    const linesWithAudio = lines.filter(line => {
+      const status = lineStatuses[line.id];
+      return status?.backendAudioUrl && status.status === 'completed';
+    }).map(line => {
+      const status = lineStatuses[line.id];
+      return {
+        text: line.text,
+        audioUrl: status?.backendAudioUrl || '',
+        speaker: line.speaker,
+        lineId: line.id
+      };
+    });
+
+    if (linesWithAudio.length === 0) {
+      alert('Please generate audio for all lines first before creating videos.');
+      return;
     }
+
+    // Prepare influencer mapping
+    const influencerMapping = {
+      [name1]: selectedInfluencer1?.id || '',
+      [name2]: selectedInfluencer2?.id || ''
+    };
+
+    // Start video generation
+    const title = `Podcast Videos - ${new Date().toLocaleDateString()}`;
+    await startVideoGeneration(linesWithAudio, influencerMapping, title);
   };
 
   const handleAudioPlayPause = (rowKey: number, isPlaying: boolean) => {
     console.log(`Line ${rowKey} audio ${isPlaying ? 'playing' : 'paused'}`);
+    
+    // Debug: Test if the audio URL is valid
+    const status = lineStatuses[rowKey];
+    if (status?.audioUrl && !isPlaying) {
+      console.log(`Testing audio URL for line ${rowKey}:`, status.audioUrl);
+      const testAudio = new Audio(status.audioUrl);
+      testAudio.addEventListener('canplay', () => {
+        console.log(`Audio URL for line ${rowKey} is valid and can play`);
+      });
+      testAudio.addEventListener('error', (e) => {
+        console.error(`Audio URL for line ${rowKey} failed to load:`, e);
+      });
+    }
   };
 
   return (
@@ -332,19 +460,43 @@ export default function VideoGenerationTab() {
           </button>
           <button
             onClick={generateAllVideos}
-            disabled={isGeneratingAllAudios}
+            disabled={isGeneratingAllAudios || videoGenerationStatus === 'processing'}
             className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors duration-300 flex items-center gap-2 disabled:opacity-50"
           >
             <Video className="h-4 w-4" />
             Generate All Videos
           </button>
+          {videoGenerationStatus !== 'idle' && (
+            <button
+              onClick={resetGeneration}
+              className="px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors duration-300"
+            >
+              Reset
+            </button>
+          )}
         </div>
       </div>
+
+      {/* Video Generation Progress */}
+      <VideoProgressBar
+        completed={progress.completed}
+        total={progress.total}
+        status={videoGenerationStatus}
+        error={videoGenerationError}
+      />
+
+      {/* Completed Videos Grid */}
+      {completedVideos.length > 0 && (
+        <CompletedVideosGrid
+          videos={completedVideos}
+          title="Generated Videos"
+        />
+      )}
 
       {/* Line List */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {lines.map((line, idx) => {
-          const rowKey = idx;
+          const rowKey = line.id;
           const statusEntry = lineStatuses[rowKey];
           const status = statusEntry && statusEntry.status ? statusEntry : { status: 'pending' };
           const audioStatus = audioGenerationStatuses[rowKey];
@@ -365,12 +517,19 @@ export default function VideoGenerationTab() {
                   {status.status !== 'processing' && (
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                       <button
-                        onClick={() => generateAudioForLine(rowKey, line.text, line.speaker === name1 ? selectedInfluencer1 : selectedInfluencer2)}
+                        onClick={() => {
+                          const influencer = line.speaker === name1 ? selectedInfluencer1 : selectedInfluencer2;
+                          if (influencer) {
+                            generateAudioForLine(rowKey, line.text, influencer);
+                          } else {
+                            console.error('No influencer selected for', line.speaker);
+                          }
+                        }}
                         className="p-1.5 rounded-lg hover:bg-white/10 transition-colors duration-200"
-                        title="Generate Preview"
+                        title="Generate Audio"
                         disabled={status.status === 'processing'}
                       >
-                        <Play className="h-4 w-4 text-white/70 hover:text-white" />
+                        <Volume2 className="h-4 w-4 text-white/70 hover:text-white" />
                       </button>
                       <button
                         onClick={() => generateFinalVideo(rowKey)}

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Loader2, Volume2 ,Wand2} from 'lucide-react';
+import { X, Loader2, Volume2, Wand2, AlertCircle } from 'lucide-react';
 import { Influencer } from '../types';
 import { useAuthStore } from '../store/authStore';
 import OpenAI from 'openai';
@@ -104,17 +104,77 @@ MAKE SURE YOU ONLY RETURN THE RESPONSE IN ONE PARAGRAPH AND dont exceed 1000 cha
     }
   };
 
+  // Create a ref to store audio elements
+  const audioRefs = React.useRef<{ [key: string]: HTMLAudioElement | null }>({});
+  const [progress, setProgress] = useState<{ [key: string]: number }>({});
+
+  // Track audio progress
+  React.useEffect(() => {
+    if (!currentlyPlaying) return;
+    
+    const intervalId = setInterval(() => {
+      const audio = audioRefs.current[currentlyPlaying];
+      if (audio) {
+        setProgress(prev => ({
+          ...prev,
+          [currentlyPlaying]: (audio.currentTime / audio.duration) * 100 || 0
+        }));
+      }
+    }, 100);
+    
+    return () => clearInterval(intervalId);
+  }, [currentlyPlaying]);
+
   const playPreview = (preview: VoicePreview) => {
+    // If this audio is currently playing, pause it
     if (currentlyPlaying === preview.generated_voice_id) {
-      setCurrentlyPlaying(null);
+      const audio = audioRefs.current[preview.generated_voice_id];
+      if (audio) {
+        audio.pause();
+        setCurrentlyPlaying(null);
+      }
       return;
     }
 
-    setCurrentlyPlaying(preview.generated_voice_id);
-    const audio = new Audio(`data:${preview.media_type};base64,${preview.audio_base_64}`);
-    audio.onended = () => setCurrentlyPlaying(null);
-    audio.play();
+    // If another audio is playing, pause it first
+    if (currentlyPlaying && audioRefs.current[currentlyPlaying]) {
+      audioRefs.current[currentlyPlaying]?.pause();
+    }
+
+    // Create audio element if it doesn't exist yet
+    if (!audioRefs.current[preview.generated_voice_id]) {
+      const audio = new Audio(`data:${preview.media_type};base64,${preview.audio_base_64}`);
+      audio.onended = () => {
+        setCurrentlyPlaying(null);
+        setProgress(prev => ({
+          ...prev,
+          [preview.generated_voice_id]: 0
+        }));
+      };
+      audioRefs.current[preview.generated_voice_id] = audio;
+    }
+
+    // Play the audio
+    const audio = audioRefs.current[preview.generated_voice_id];
+    if (audio) {
+      audio.currentTime = 0; // Reset to beginning
+      audio.play().catch(err => console.error("Error playing audio:", err));
+      setCurrentlyPlaying(preview.generated_voice_id);
+    }
   };
+  
+  // Clean up audio elements when component unmounts
+  React.useEffect(() => {
+    return () => {
+      Object.values(audioRefs.current).forEach(audio => {
+        if (audio) {
+          audio.pause();
+          audio.src = '';
+        }
+      });
+      audioRefs.current = {};
+    };
+  }, []);
 
   const handleSelectVoice = async (voiceId: string) => {
     setIsSavingVoice(true);
@@ -165,36 +225,37 @@ MAKE SURE YOU ONLY RETURN THE RESPONSE IN ONE PARAGRAPH AND dont exceed 1000 cha
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg w-[800px] p-6 min-h-[600px] max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 overflow-y-auto">
+      <div className="relative bg-[#1a1a1a]/70 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl shadow-black/30 px-6 py-8 w-[800px] min-h-[600px] max-h-[90vh] flex flex-col">
         <div className="flex justify-between items-start mb-6">
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">
+            <h2 className="text-2xl font-bold text-white">
               Set up voice for {influencer.name}
             </h2>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-sm text-gray-400">
               Describe the voice you want for your influencer
             </p>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-500"
+            className="text-gray-400 hover:text-white transition-colors"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-            {error}
+          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg flex items-start">
+            <AlertCircle className="h-5 w-5 mr-2 mt-0.5 flex-shrink-0" />
+            <span className="text-sm">{error}</span>
           </div>
         )}
 
         <div className="flex gap-6 mb-6">
           <div className="flex-1 min-w-0 flex flex-col">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-gray-300 mb-2">
               Voice Description
-              <span className="text-gray-500 text-xs ml-2">(max 1000 characters)</span>
+              <span className="text-gray-400 text-xs ml-2">(max 1000 characters)</span>
             </label>
             <div className="relative">
               <textarea
@@ -202,27 +263,27 @@ MAKE SURE YOU ONLY RETURN THE RESPONSE IN ONE PARAGRAPH AND dont exceed 1000 cha
                 onChange={(e) => setDescription(e.target.value.slice(0, 1000))}
                 maxLength={1000}
                 rows={4}
-                className="block w-full rounded-lg border-2 border-gray-300 px-4 py-3 text-sm focus:border-blue-500 focus:ring-blue-500 resize-none flex-1 pr-12"
+                className="block w-full bg-white/15 border border-white/20 rounded-lg px-4 py-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition resize-none flex-1 pr-12"
                 placeholder="Describe the voice characteristics (e.g., gender, age, tone, accent, etc.)"
                 disabled={isGenerating}
               />
               <button
                 onClick={generateVoicePrompt}
                 disabled={!description.trim() || isGeneratingPrompt}
-                className="absolute right-2 top-2 p-2 text-gray-500 hover:text-gray-700 disabled:opacity-50 transition-colors"
+                className="absolute right-2 top-2 p-2 text-gray-400 hover:text-white disabled:opacity-50 transition-colors"
                 title="Generate detailed voice description"
               >
                 <Wand2 className={`h-5 w-5 ${isGeneratingPrompt ? 'animate-spin' : ''}`} />
               </button>
             </div>
-            <div className="mt-1 text-xs text-gray-500 text-right">
+            <div className="mt-1 text-xs text-gray-400 text-right">
               {description.length}/1000 characters
             </div>
             <div className="flex gap-3 mt-4">
               <button
                 onClick={generateVoicePreviews}
                 disabled={!description.trim() || isGenerating}
-                className="flex-1 px-4 py-2 bg-blue-600 text-black rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2 shadow-md transform hover:translate-y-[-1px] transition-all text-sm font-medium"
+                className="flex-1 px-4 py-2 bg-cyan-500 text-black rounded-lg hover:bg-cyan-400 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors text-sm font-medium"
               >
                 {isGenerating ? (
                   <>
@@ -237,7 +298,7 @@ MAKE SURE YOU ONLY RETURN THE RESPONSE IN ONE PARAGRAPH AND dont exceed 1000 cha
                 <button
                   onClick={generateVoicePreviews}
                   disabled={!description.trim() || isGenerating}
-                  className="px-4 py-2 border-2 border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 disabled:opacity-50 flex items-center justify-center gap-2 transition-all text-sm font-medium"
+                  className="px-4 py-2 border border-white/20 text-white rounded-lg bg-white/10 hover:bg-white/15 disabled:opacity-50 flex items-center justify-center gap-2 transition-colors text-sm font-medium"
                 >
                   Regenerate
                 </button>
@@ -246,7 +307,7 @@ MAKE SURE YOU ONLY RETURN THE RESPONSE IN ONE PARAGRAPH AND dont exceed 1000 cha
           </div>
 
           <div className="w-48 flex-shrink-0">
-            <div className="aspect-square rounded-lg overflow-hidden border-2 border-gray-300 bg-gray-100">
+            <div className="aspect-square rounded-lg overflow-hidden border border-white/20 bg-white/10">
               {influencer.preview_url ? (
                 <img
                   src={influencer.preview_url}
@@ -265,50 +326,56 @@ MAKE SURE YOU ONLY RETURN THE RESPONSE IN ONE PARAGRAPH AND dont exceed 1000 cha
         {previews.length > 0 && (
           <div className="flex-1 overflow-hidden flex flex-col min-h-0 mt-6">
             <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-medium text-gray-700">
+              <h3 className="text-sm font-medium text-gray-300">
                 Generated Voice Options
               </h3>
-              <span className="text-xs text-gray-500">
+              <span className="text-xs text-gray-400">
                 {previews.length} voices generated
               </span>
             </div>
-            <div className="border-2 border-gray-200 rounded-lg p-3 overflow-hidden flex flex-col flex-1">
+            <div className="bg-white/5 border border-white/15 rounded-lg p-3 overflow-hidden flex flex-col flex-1">
               <div className="overflow-y-auto flex-1 space-y-2 pr-2 custom-scrollbar">
               {previews.map((preview) => (
                 <div
                   key={preview.generated_voice_id}
-                  className={`p-2.5 rounded-lg border-2 transition-all ${
+                  className={`p-4 rounded-lg transition-all ${
                     selectedPreview === preview.generated_voice_id
-                      ? 'border-blue-500 bg-blue-50 shadow-sm'
-                      : 'border-gray-100 hover:border-blue-300 hover:shadow-sm'
+                      ? 'border border-cyan-500/70 bg-white/10 shadow-md'
+                      : 'border border-white/10 hover:border-white/30 hover:bg-white/5'
                   } transition-all duration-200`}
                 >
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mb-3">
                     <button
                       onClick={() => playPreview(preview)}
-                      className={`flex items-center justify-center w-9 h-9 rounded-full transition-all ${
+                      className={`flex items-center justify-center w-10 h-10 rounded-full transition-all ${
                         currentlyPlaying === preview.generated_voice_id
-                          ? 'bg-blue-100 text-blue-600 scale-110'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
+                          ? 'bg-cyan-500 text-black shadow-md scale-110'
+                          : 'bg-white/10 text-white hover:bg-white/20 hover:scale-105'
                       }`}
-                      title={currentlyPlaying === preview.generated_voice_id ? 'Stop' : 'Play'}
+                      title={currentlyPlaying === preview.generated_voice_id ? 'Pause' : 'Play'}
+                      aria-label={currentlyPlaying === preview.generated_voice_id ? 'Pause voice sample' : 'Play voice sample'}
                     >
-                      <Volume2 className={`h-4 w-4 ${
-                        currentlyPlaying === preview.generated_voice_id
-                          ? 'animate-[pulse_1.5s_ease-in-out_infinite]'
-                          : ''
-                      }`} />
+                      {currentlyPlaying === preview.generated_voice_id ? (
+                        <Volume2 className="h-5 w-5 animate-[pulse_1.5s_ease-in-out_infinite]" />
+                      ) : (
+                        <Volume2 className="h-5 w-5" />
+                      )}
                     </button>
-                    <span className="text-sm text-gray-600">
-                      {currentlyPlaying === preview.generated_voice_id ? 'Playing...' : `Sample ${previews.indexOf(preview) + 1}`}
-                    </span>
+                    <div className="flex flex-col">
+                      <span className="text-sm font-medium text-white">
+                        {`Voice Sample ${previews.indexOf(preview) + 1}`}
+                      </span>
+                      <span className="text-xs text-gray-400">
+                        {currentlyPlaying === preview.generated_voice_id ? 'Now playing...' : `${preview.duration_secs.toFixed(1)}s`}
+                      </span>
+                    </div>
                     <div className="flex-1" />
                     <button
                       onClick={() => setSelectedPreview(preview.generated_voice_id)}
                       className={`px-3.5 py-1.5 rounded-md text-xs font-medium transition-all ${
                         selectedPreview === preview.generated_voice_id
-                          ? 'bg-blue-600 text-white shadow-sm scale-105'
-                          : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:scale-105'
+                          ? 'bg-cyan-500 text-black shadow-md'
+                          : 'bg-white/10 text-white hover:bg-white/20'
                       }`}
                     >
                       {selectedPreview === preview.generated_voice_id
@@ -316,16 +383,24 @@ MAKE SURE YOU ONLY RETURN THE RESPONSE IN ONE PARAGRAPH AND dont exceed 1000 cha
                         : 'Select'}
                     </button>
                   </div>
+                  
+                  {/* Audio progress bar */}
+                  <div className="w-full h-1.5 bg-black/30 rounded-full overflow-hidden">
+                    <div 
+                      className={`h-full ${currentlyPlaying === preview.generated_voice_id ? 'bg-cyan-500' : 'bg-white/20'} transition-all`}
+                      style={{ width: `${currentlyPlaying === preview.generated_voice_id ? progress[preview.generated_voice_id] || 0 : 0}%` }}
+                    ></div>
+                  </div>
                 </div>
               ))}
             </div>
             </div>
             
-            <div className="flex justify-end mt-3 pt-3 border-t border-gray-200">
+            <div className="flex justify-end mt-3 pt-3 border-t border-white/10">
               <button
                 onClick={() => selectedPreview && handleSelectVoice(selectedPreview)}
                 disabled={!selectedPreview || isSavingVoice}
-                className="px-6 py-2 bg-blue-600 text-black rounded-lg hover:bg-blue-700 disabled:opacity-50 shadow-md transform hover:translate-y-[-1px] transition-all text-sm font-medium"
+                className="px-6 py-2 bg-cyan-500 text-black rounded-lg hover:bg-cyan-400 disabled:opacity-50 transition-colors text-sm font-medium"
               > 
                 {isSavingVoice ? (
                   <>

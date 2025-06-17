@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, 
@@ -8,7 +8,9 @@ import {
   Edit, 
   Trash2, 
   Upload,
-  FileText
+  FileText,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 
 interface VideoDetailModalProps {
@@ -26,7 +28,34 @@ interface VideoDetailModalProps {
 
 export default function VideoDetailModal({ content, onClose, onAddCaption }: VideoDetailModalProps) {
   const [isPlaying, setIsPlaying] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  // Initialize video when it's loaded
+  useEffect(() => {
+    if (videoRef.current) {
+      // Set initial volume state
+      videoRef.current.muted = false;
+      
+      // Add event listeners for video state changes
+      const videoElement = videoRef.current;
+      
+      const playHandler = () => setIsPlaying(true);
+      const pauseHandler = () => setIsPlaying(false);
+      const volumeChangeHandler = () => setIsMuted(videoElement.muted);
+      
+      videoElement.addEventListener('play', playHandler);
+      videoElement.addEventListener('pause', pauseHandler);
+      videoElement.addEventListener('volumechange', volumeChangeHandler);
+      
+      return () => {
+        // Clean up event listeners
+        videoElement.removeEventListener('play', playHandler);
+        videoElement.removeEventListener('pause', pauseHandler);
+        videoElement.removeEventListener('volumechange', volumeChangeHandler);
+      };
+    }
+  }, [videoRef.current]);
 
   const handlePlayClick = () => {
     if (videoRef.current) {
@@ -37,6 +66,24 @@ export default function VideoDetailModal({ content, onClose, onAddCaption }: Vid
       }
       setIsPlaying(!isPlaying);
     }
+  };
+
+  const handleMuteToggle = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(!isMuted);
+    }
+  };
+
+  const handleDownload = (e: React.MouseEvent<HTMLAnchorElement>, videoUrl: string) => {
+    e.preventDefault();
+    // Create a direct download link
+    const link = document.createElement('a');
+    link.href = videoUrl;
+    link.download = `${content.title || 'video'}.mp4`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -76,16 +123,30 @@ export default function VideoDetailModal({ content, onClose, onAddCaption }: Vid
                       src={content.video_url}
                       className="w-full h-full object-cover"
                       loop
-                      muted
                     />
-                    <button
-                      onClick={handlePlayClick}
-                      className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center"
-                    >
-                      {!isPlaying && (
-                        <Play className="h-16 w-16 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                      )}
-                    </button>
+                    <div className="absolute inset-0 flex flex-col">
+                      <button
+                        onClick={handlePlayClick}
+                        className="flex-grow bg-black/0 group-hover:bg-black/40 transition-all duration-300 flex items-center justify-center"
+                      >
+                        {!isPlaying && (
+                          <Play className="h-16 w-16 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                        )}
+                      </button>
+                      {/* Volume control */}
+                      <div className="relative p-3 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex justify-end">
+                        <button
+                          onClick={handleMuteToggle}
+                          className="rounded-full p-2 bg-white/20 hover:bg-white/30 transition-colors"
+                        >
+                          {isMuted ? (
+                            <VolumeX className="h-5 w-5 text-white" />
+                          ) : (
+                            <Volume2 className="h-5 w-5 text-white" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-white">
@@ -100,7 +161,7 @@ export default function VideoDetailModal({ content, onClose, onAddCaption }: Vid
                   <>
                     <a
                       href={content.video_url}
-                      download
+                      onClick={(e) => content.video_url && handleDownload(e, content.video_url)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                     >
                       <Download className="h-5 w-5" />

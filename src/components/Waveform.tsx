@@ -16,6 +16,8 @@ const Waveform: React.FC<WaveformProps> = ({ audioUrl, onPlayPause }) => {
   useEffect(() => {
     if (!waveformRef.current) return;
 
+    console.log('Waveform loading audio URL:', audioUrl);
+
     wavesurfer.current = WaveSurfer.create({
       container: waveformRef.current,
       waveColor: 'rgba(255, 255, 255, 0.3)',
@@ -50,10 +52,16 @@ const Waveform: React.FC<WaveformProps> = ({ audioUrl, onPlayPause }) => {
       onPlayPause?.(false);
     };
 
+    const errorHandler = (error: any) => {
+      console.error('Waveform error for URL:', audioUrl, error);
+      setIsLoading(false);
+    };
+
     wavesurfer.current.on('ready', readyHandler);
     wavesurfer.current.on('play', playHandler);
     wavesurfer.current.on('pause', pauseHandler);
     wavesurfer.current.on('finish', finishHandler);
+    wavesurfer.current.on('error', errorHandler);
 
     return () => {
       if (wavesurfer.current) {
@@ -61,6 +69,7 @@ const Waveform: React.FC<WaveformProps> = ({ audioUrl, onPlayPause }) => {
         wavesurfer.current.un('play', playHandler);
         wavesurfer.current.un('pause', pauseHandler);
         wavesurfer.current.un('finish', finishHandler);
+        wavesurfer.current.un('error', errorHandler);
         wavesurfer.current.destroy();
         wavesurfer.current = null;
       }

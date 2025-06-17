@@ -1,10 +1,18 @@
 import React,{useState} from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, Users, Loader2, Wand2, LayoutGrid, Columns, Layout } from 'lucide-react';
+import { ArrowLeft, Plus, Users, Loader2, Wand2, LayoutGrid, Columns, Layout } from 'lucide-react';
 import { useInfluencerStore } from '../store/influencerStore';
 import { InfluencerCard } from '../components/InfluencerCard';
 import AddLookModal from '../components/AddLookModal';
 import { useAuthStore } from '../store/authStore';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const gridLayouts = [
+  { value: 3, icon: LayoutGrid, label: '3 Columns' },
+  { value: 4, icon: Columns, label: '4 Columns' },
+  { value: 5, icon: Layout, label: '5 Columns' },
+];
 import { motion, AnimatePresence } from 'framer-motion';
 
 const gridLayouts = [
@@ -21,6 +29,8 @@ export default function AppearancesPage() {
   const { currentUser } = useAuthStore();
   const { influencers, fetchInfluencers } = useInfluencerStore();
   const [showAddLookModal, setShowAddLookModal] = React.useState(false);
+  const [gridCols, setGridCols] = useState(4);
+  const [showGridDropdown, setShowGridDropdown] = useState(false);
   const [gridCols, setGridCols] = useState(4);
   const [showGridDropdown, setShowGridDropdown] = useState(false);
   const influencer = influencers.find((inf) => inf.id === id);
@@ -160,6 +170,65 @@ export default function AppearancesPage() {
             )}
           </button>
         </div>
+        <div className="flex items-center gap-4">
+          {/* Grid Layout Selector */}
+          <div className="relative group">
+            <button
+              onClick={() => setShowGridDropdown(!showGridDropdown)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl shadow-lg transition-all duration-200"
+              title="Change Grid View"
+            >
+              <LayoutGrid className="w-5 h-5" />
+            </button>
+            
+            <AnimatePresence>
+              {showGridDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute right-0 mt-2 w-48 bg-[#1a1a1a] rounded-lg shadow-xl border border-white/10 overflow-hidden z-50"
+                >
+                  {gridLayouts.map((layout) => (
+                    <button
+                      key={layout.value}
+                      onClick={() => {
+                        setGridCols(layout.value);
+                        setShowGridDropdown(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-2 text-sm transition-colors ${
+                        gridCols === layout.value
+                          ? 'bg-cyan-500/20 text-cyan-500'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <layout.icon className="w-4 h-4" />
+                      {layout.label}
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
+          <button
+            onClick={handleAddMotion}
+            disabled={isAddingMotion}
+            className="flex items-center gap-2 px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors"
+          >
+            {isAddingMotion ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Adding Motion...
+              </>
+            ) : (
+              <>
+                <Wand2 className="h-4 w-4" />
+                Add Motion
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {motionSuccess && (
@@ -179,10 +248,25 @@ export default function AppearancesPage() {
           ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
           : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5'
       }`}>
+
+      <div className={`grid gap-6 ${
+        gridCols === 1
+          ? 'grid-cols-1'
+          : gridCols === 2
+          ? 'grid-cols-1 sm:grid-cols-2'
+          : gridCols === 3
+          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+          : gridCols === 4
+          ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+          : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5'
+      }`}>
         <button
           onClick={() => setShowAddLookModal(true)}
           className="bg-[#1a1a1a] rounded-xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 border-2 border-dashed border-gray-700 hover:border-[#c9fffc] group h-full"
+          className="bg-[#1a1a1a] rounded-xl shadow-xl overflow-hidden hover:shadow-2xl transition-all duration-300 border-2 border-dashed border-gray-700 hover:border-[#c9fffc] group h-full"
         >
+          <div className="p-4 h-full">
+            <div className="aspect-[2/3] rounded-xl border-2 border-gray-700 group-hover:border-[#c9fffc] transition-colors flex items-center justify-center">
           <div className="p-4 h-full">
             <div className="aspect-[2/3] rounded-xl border-2 border-gray-700 group-hover:border-[#c9fffc] transition-colors flex items-center justify-center">
               <div className="flex flex-col items-center gap-4">
@@ -194,6 +278,8 @@ export default function AppearancesPage() {
             </div>
           </div>
         </button>
+
+        <div className="h-full">
 
         <div className="h-full">
           <InfluencerCard
@@ -222,7 +308,25 @@ export default function AppearancesPage() {
                 ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
                 : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5'
             }`}>
+            <div className={`grid gap-6 ${
+              gridCols === 1
+                ? 'grid-cols-1'
+                : gridCols === 2
+                ? 'grid-cols-1 sm:grid-cols-2'
+                : gridCols === 3
+                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                : gridCols === 4
+                ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4'
+                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-5'
+            }`}>
               {relatedInfluencers.map((relatedInfluencer) => (
+                <div key={relatedInfluencer.id} className="h-full">
+                  <InfluencerCard
+                    influencer={relatedInfluencer}
+                    onEdit={() => {}}
+                    isLookPage
+                  />
+                </div>
                 <div key={relatedInfluencer.id} className="h-full">
                   <InfluencerCard
                     influencer={relatedInfluencer}
@@ -239,6 +343,10 @@ export default function AppearancesPage() {
       {showAddLookModal && (
         <AddLookModal
           onClose={() => setShowAddLookModal(false)}
+          onSuccess={() => {
+            // Refresh the influencers data to show the new look
+            fetchInfluencers();
+          }}
           influencer={influencer}
         />
       )}

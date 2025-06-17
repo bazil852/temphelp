@@ -18,6 +18,7 @@ body {
   color: rgba(255, 255, 255, 0.9);
   position: relative;
   overflow-x: hidden;
+  -ms-overflow-style: none; /* For Internet Explorer and Edge */
 }
 
 /* Animated background elements */
@@ -199,6 +200,17 @@ body::before {
   0% { box-shadow: 0 0 0 0 rgba(77, 224, 249, 0.4); }
   70% { box-shadow: 0 0 0 10px rgba(77, 224, 249, 0); }
   100% { box-shadow: 0 0 0 0 rgba(77, 224, 249, 0); }
+}
+
+/* Custom Scrollbar Hiding */
+/* Hide scrollbars for WebKit (Chrome, Safari, new Edge) */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbars for Firefox */
+html {
+  scrollbar-width: none;
 }
 
 .loading-pulse {

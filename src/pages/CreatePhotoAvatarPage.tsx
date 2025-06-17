@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import imageCompression from 'browser-image-compression';
 import { ArrowLeft, Upload, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { useAuthStore } from '../store/authStore';
@@ -41,6 +42,34 @@ export default function CreatePhotoAvatarPage() {
     setError('');
 
     try {
+      if (!selectedFile) {
+        setError('No file selected.'); // Should be caught by earlier check, but good practice
+        setIsUploading(false);
+        return;
+      }
+
+      console.log('Original file instanceof File', selectedFile instanceof File);
+      console.log(`Original file size ${selectedFile.size / 1024 / 1024} MB`);
+
+      const options = {
+        maxSizeMB: 1,
+        maxWidthOrHeight: 1920,
+        useWebWorker: true,
+      };
+
+      let compressedFile = selectedFile;
+      try {
+        compressedFile = await imageCompression(selectedFile, options);
+        console.log('Compressed file instanceof File', compressedFile instanceof File);
+        console.log(`Compressed file size ${compressedFile.size / 1024 / 1024} MB`);
+      } catch (compressionError) {
+        console.error('Image compression failed:', compressionError);
+        // Proceed with original file if compression fails, or set error
+        // setError('Failed to compress image. Please try again.');
+        // setIsUploading(false);
+        // return;
+      }
+
       // 1. Upload to Supabase
       const timestamp = Date.now();
       const fileExt = selectedFile.name.split('.').pop();
@@ -49,7 +78,7 @@ export default function CreatePhotoAvatarPage() {
 
       const { error: uploadError, data } = await supabase.storage
         .from('influencer-images')
-        .upload(filePath, selectedFile);
+        .upload(filePath, compressedFile);
 
       if (uploadError) throw uploadError;
 
@@ -73,14 +102,14 @@ export default function CreatePhotoAvatarPage() {
       }
 
       const formData = new FormData();
-      formData.append('file', selectedFile);
+      formData.append('file', compressedFile);
 
       const heygenResponse = await fetch('https://upload.heygen.com/v1/asset', {
         method: 'POST',
         headers: {
           'x-api-key': apiKeyData.heygen_key,
         },
-        body: selectedFile
+        body: compressedFile
       });
 
       if (!heygenResponse.ok) {

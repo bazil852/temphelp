@@ -11,6 +11,8 @@ import {
   Power,
   Trash2,
   X
+  Trash2,
+  X
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Influencer } from '../types';
@@ -21,6 +23,7 @@ import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
 import { useInfluencerStore } from '../store/influencerStore';
 import { CardShell } from './CardShell';
+import { CardShell } from './CardShell';
 
 interface InfluencerCardProps {
   influencer: Influencer;
@@ -30,7 +33,7 @@ interface InfluencerCardProps {
 
 interface ConfirmMotionModalProps {
   onClose: () => void;
-  onConfirm: (prompt: string, motionType: 'consistent' | 'expressive') => void;
+  onConfirm: (prompt: string, motionType: 'consistent' | 'expressive', name: string) => void;
   isLoading: boolean;
 }
 
@@ -47,8 +50,24 @@ function ConfirmMotionModal({
 }: ConfirmMotionModalProps) {
   const [prompt, setPrompt] = useState('');
   const [motionType, setMotionType] = useState<'consistent' | 'expressive'>('consistent');
+  const [name, setName] = useState('');
 
   return (
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 20 }}
+        transition={{ duration: 0.2 }}
+        className="bg-[#1a1a1a] rounded-xl p-6 max-w-md w-full border border-white/10"
+      >
+        <div className="flex justify-between items-start mb-6">
+          <div>
+            <h3 className="text-xl font-semibold text-white">Add Motion</h3>
+            <p className="mt-1 text-sm text-gray-400">
+              Create a new look with motion capabilities
+            </p>
+          </div>
     <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -67,12 +86,29 @@ function ConfirmMotionModal({
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
+            className="text-gray-400 hover:text-white transition-colors"
           >
+            <X className="h-5 w-5" />
             <X className="h-5 w-5" />
           </button>
         </div>
 
         <div className="space-y-6">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-300 mb-2">
+              Name
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
+              placeholder="Enter a name for this motion avatar"
+              required
+            />
+          </div>
+
           <div>
             <label htmlFor="motionType" className="block text-sm font-medium text-gray-300 mb-2">
               Motion Type
@@ -111,8 +147,8 @@ function ConfirmMotionModal({
               Cancel
             </button>
             <button
-              onClick={() => onConfirm(prompt, motionType)}
-              disabled={isLoading || !prompt.trim()}
+              onClick={() => onConfirm(prompt, motionType, name)}
+              disabled={isLoading || !prompt.trim() || !name.trim()}
               className="px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors inline-flex items-center gap-2"
             >
               {isLoading ? (
@@ -199,18 +235,19 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
   const { deleteInfluencer } = useInfluencerStore();
 
   const hasVoice = !!influencer.voice_id;
-  const isProcessing = influencer.status && influencer.status !== 'completed';
+  const isProcessing = influencer.status === 'pending' || (influencer.status && influencer.status !== 'completed');
 
   const handleActionClick = (e: React.MouseEvent) => {
     if (!hasVoice || isProcessing) {
       e.preventDefault();
-      if (!hasVoice) {
+      if (!hasVoice && !isProcessing) {
         setShowVoiceSetupModal(true);
       }
+      // Do nothing if processing - just prevent navigation/action
     }
   };
 
-  const handleAddMotion = async (prompt: string, motionType: 'consistent' | 'expressive') => {
+  const handleAddMotion = async (prompt: string, motionType: 'consistent' | 'expressive', name: string) => {
     if (!influencer || !currentUser?.heygenApiKey) return;
 
     setIsAddingMotion(true);
@@ -239,6 +276,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
       console.log(`Fetched groupId: ${groupId}`);
 
       // 2. Add motion to the influencer using group_id, prompt, and motionType
+      // 2. Add motion to the influencer using group_id, prompt, and motionType
       const motionResponse = await fetch(
         'https://api.heygen.com/v2/photo_avatar/add_motion',
         {
@@ -248,6 +286,11 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
             'content-type': 'application/json',
             'x-api-key': currentUser.heygenApiKey
           },
+          body: JSON.stringify({ 
+            id: groupId,
+            prompt: prompt,
+            motion_type: motionType
+          })
           body: JSON.stringify({ 
             id: groupId,
             prompt: prompt,
@@ -268,7 +311,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
       const { error: dbError } = await supabase.from('influencers').insert([
         {
           user_id: currentUser.id,
-          name: `${influencer.name} (Motion)`,
+          name: name.trim() ? name : `${influencer.name} (Motion)`, // Use provided name if available
           template_id: motionData.data.id,
           preview_url: influencer.preview_url,
           status: 'pending_motion',
@@ -313,6 +356,15 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
         imgSrc={influencer.preview_url}
         imgAlt={influencer.name}
       >
+          {/* Processing overlay */}
+          {isProcessing && (
+            <div className="absolute inset-0 bg-black/70 backdrop-blur-sm z-20 flex flex-col items-center justify-center rounded-xl overflow-hidden" style={{pointerEvents: 'all'}}>
+              <Loader2 className="h-12 w-12 text-white/80 animate-spin mb-3" />
+              <p className="text-white/90 font-medium">Processing</p>
+              <p className="text-white/60 text-sm mt-1">Please wait...</p>
+            </div>
+          )}
+          
           {/* Status Badge */}
           <div className="absolute top-3 left-3 z-10">
             <button
@@ -342,6 +394,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
             <button
               disabled={!!isProcessing}
               onClick={() => !isProcessing && setShowMotionModal(true)}
+              className={`absolute top-3 right-12 z-10 p-2 rounded-full transition-all ${
               className={`absolute top-3 right-12 z-10 p-2 rounded-full transition-all ${
                 isProcessing
                   ? 'bg-white/10 opacity-50 cursor-not-allowed'
@@ -414,17 +467,29 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
 
               {/* Record Button */}
               <button
-                onClick={() => hasVoice ? setShowCreateModal(true) : setShowVoiceSetupModal(true)}
+                onClick={() => {
+                  if (isProcessing) return; // Prevent actions when processing
+                  hasVoice ? setShowCreateModal(true) : setShowVoiceSetupModal(true);
+                }}
+                disabled={isProcessing ? true : undefined}
                 className={`w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all border group/button ${
-                  hasVoice
-                    ? 'bg-white/10 hover:bg-white/20 border-white/20'
-                    : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20'
+                  isProcessing
+                    ? 'bg-gray-800/80 border-gray-700 cursor-not-allowed'
+                    : hasVoice
+                      ? 'bg-white/10 hover:bg-white/20 border-white/20'
+                      : 'bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20'
                 }`}
-                title="Record new video"
+                title={isProcessing ? 'Influencer is processing' : 'Record new video'}
               >
-                <Mic className="h-5 w-5 text-white" />
+                {isProcessing ? (
+                  <Loader2 className="h-5 w-5 text-gray-400 animate-spin" />
+                ) : (
+                  <Mic className="h-5 w-5 text-white" />
+                )}
                 <span className="absolute -top-8 scale-0 group-hover/button:scale-100 transition-transform bg-black/80 text-white text-xs py-1 px-2 rounded">
-                  {hasVoice ? 'Record' : 'Setup Voice Required'}
+                  {isProcessing 
+                    ? 'Processing' 
+                    : hasVoice ? 'Record' : 'Setup Voice Required'}
                 </span>
               </button>
 
@@ -443,9 +508,11 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
               )}
             </div>
       </CardShell>
+      </CardShell>
 
       {/* Modals */}
-      {showCreateModal && (
+      {/* Only show modals if the influencer is not processing */}
+      {!isProcessing && showCreateModal && (
         <CreateVideoModal
           influencerId={influencer.id}
           templateId={influencer.templateId}
@@ -454,7 +521,7 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
         />
       )}
 
-      {showVoiceSetupModal && (
+      {!isProcessing && showVoiceSetupModal && (
         <VoiceSetupModal
           influencer={influencer}
           onClose={() => setShowVoiceSetupModal(false)}

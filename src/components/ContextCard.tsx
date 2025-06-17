@@ -61,7 +61,7 @@ export default function ContextCard() {
     }
   };
 
-  function extractJsonFromGpt(content) {
+  function extractJsonFromGpt(content: string) {
     try {
       // Remove any backticks and trim extra whitespace
       const cleaned = content
@@ -83,93 +83,49 @@ export default function ContextCard() {
       return;
     }
 
-    // if (lines.length === 0) {
-    //   console.error('Please add a transcript before recording');
-    //   return;
-    // }
-
-    if (!currentUser?.openaiApiKey) {
-      console.error('OpenAI API key not found');
-      return;
-    }
-
-    const finalPrompt = `
-You are writing a podcast script.
-
-- Topic of Podcast: "${systemPrompt}"
-- Conversation Style: Here are sample lines from a previous transcript to mimic the style:
-${lines}
-
-- Influencer 1:
-  - Name: ${name1}
-  - Personality Traits: ${personality1}
-
-- Influencer 2:
-  - Name: ${name2}
-  - Personality Traits: ${personality2}
-
-Task:
-Generate a structured JSON object for a back-and-forth podcast conversation between Influencer 1 and Influencer 2.
-
-Each part should be an object with:
-- "speaker": name of the speaker
-- "text": what the speaker says
-
-Ensure:
-- The conversation flows naturally.
-- Tone and style match the sample transcript.
-- Stay on topic.
-
-Respond ONLY with valid JSON.
-Example JSON format:
-[
-  { "speaker": "Influencer 1", "text": "Opening line" },
-  { "speaker": "Influencer 2", "text": "Reply" },
-  { "speaker": "Influencer 1", "text": "Next line" },
-  ...
-]
-`;
-
+    setIsLoading(true);
     try {
-      // Call OpenAI's GPT-4o API
-      const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Call backend API to generate podcast script
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/podcast/generate-script`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentUser.openaiApiKey}`
         },
         body: JSON.stringify({
-          model: 'gpt-4o',
-          messages: [
-            {
-              role: 'system',
-              content: 'You are a helpful assistant that generates podcast scripts in JSON format.'
-            },
-            {
-              role: 'user',
-              content: finalPrompt
-            }
-          ],
-          temperature: 0.7,
-          max_tokens: 2000
+          topic: systemPrompt,
+          influencer1: {
+            name: name1,
+            personality: personality1
+          },
+          influencer2: {
+            name: name2,
+            personality: personality2
+          }
         })
       });
 
-      if (!openaiResponse.ok) {
+      if (!response.ok) {
         throw new Error('Failed to generate podcast script');
       }
 
-      const openaiData = await openaiResponse.json();
-      // console.log('Podcast script generated:', openaiData);
-      const podcastScript = extractJsonFromGpt(openaiData.choices[0].message.content);
-
-
-      // Update the transcript lines with the generated podcast script
-      setLines(podcastScript);
-
-      console.log('Podcast script generated:', podcastScript);
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error('Backend failed to generate script');
+      }
+      
+      // Ensure each line has a proper id field
+      const scriptWithIds = data.script.map((line: any, index: number) => ({
+        ...line,
+        id: line.id || index + 1, // Use existing id or generate one
+        speakerColor: line.speaker === name1 ? 'bg-blue-400' : 'bg-purple-400'
+      }));
+      
+      setLines(scriptWithIds);
+      console.log('Podcast script generated:', scriptWithIds);
     } catch (error) {
       console.error('Error:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 

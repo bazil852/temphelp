@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { createContent, updateContent, getContents, deleteContent } from '../lib/supabase';
+import { createContent, updateContent, getContents, deleteContent, uploadVideoFromUrlToSupabase } from '../lib/supabase';
 import { createVideo, getVideoStatus } from '../lib/heygen';
 import { generateAIScript } from '../lib/openai';
 import { Content } from '../types';
@@ -138,10 +138,23 @@ export const useContentStore = create<ContentStore>((set, get) => ({
           const data = await response.json();
 
           if (data.state === 'COMPLETE' && data.url) {
-            await get().updateContent(influencerId, content.id, {
-              status: 'completed',
-              video_url: data.url
-            });
+            try {
+              // Upload to our own storage bucket and get new URL
+              const newVideoUrl = await uploadVideoFromUrlToSupabase(data.url);
+              
+              // Update with our storage URL
+              await get().updateContent(influencerId, content.id, {
+                status: 'completed',
+                video_url: newVideoUrl
+              });
+            } catch (uploadError) {
+              console.error('Failed to upload video to Supabase:', uploadError);
+              // Fallback to original URL if upload fails
+              await get().updateContent(influencerId, content.id, {
+                status: 'completed',
+                video_url: data.url
+              });
+            }
           } else if (data.state === 'FAILED') {
             await get().updateContent(influencerId, content.id, {
               status: 'failed',
@@ -153,10 +166,23 @@ export const useContentStore = create<ContentStore>((set, get) => ({
           const status = await getVideoStatus(content.video_id!);
           
           if (status.status === 'completed' && status.url) {
-            await get().updateContent(influencerId, content.id, {
-              status: 'completed',
-              video_url: status.url
-            });
+            try {
+              // Upload to our own storage bucket and get new URL
+              const newVideoUrl = await uploadVideoFromUrlToSupabase(status.url);
+              
+              // Update with our storage URL
+              await get().updateContent(influencerId, content.id, {
+                status: 'completed',
+                video_url: newVideoUrl
+              });
+            } catch (uploadError) {
+              console.error('Failed to upload video to Supabase:', uploadError);
+              // Fallback to original URL if upload fails
+              await get().updateContent(influencerId, content.id, {
+                status: 'completed',
+                video_url: status.url
+              });
+            }
           } else if (status.status === 'failed') {
             await get().updateContent(influencerId, content.id, {
               status: 'failed',

@@ -4,14 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import {
   Home,
   Settings,
-  Video,
-  HelpCircle,
   Webhook,
   Languages,
-  MonitorDot,
-  ChevronDown,
   LogOut,
-  VideoIcon,
   Scissors,
   Users,
   Menu,
@@ -20,10 +15,10 @@ import {
   Book,
   Workflow,
   Mic,
+  Code,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { usePlanLimits } from '../hooks/usePlanLimits';
-import { supabase } from '../lib/supabase';
 import WebhookModal from './WebhookModal';
 
 interface NavItem {
@@ -60,6 +55,8 @@ export default function FloatingSidebar() {
     { icon: Home, label: 'Home', path: '/dashboard' },
     { icon: Users, label: 'Influencers', path: '/influencers' },
     { icon: Film, label: 'Videos', path: '/videos' },
+    { icon: Workflow, label: 'Workflow', path: '/workflow' },
+    { icon: Mic, label: 'Podcast Studio', path: '/podcast-studio' },
     { icon: Workflow, label: 'Workflow', path: '/workflow' },
     { icon: Mic, label: 'Podcast Studio', path: '/podcast-studio' },
     { icon: Webhook, label: 'Automations', path: '/webhooks', onClick: handleAutomationClick },
@@ -108,16 +105,37 @@ export default function FloatingSidebar() {
           }}
         >
           <div className="flex flex-col h-full py-6">
-            {/* Logo */}
-            <div className="flex justify-center mb-6">
-              <motion.img
-                src="https://i.postimg.cc/YqZzTTR6/app.jpg"
-                alt="Logo"
-                className="w-8 h-8 rounded-lg"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-              />
+            {/* Logo and API Docs Button */}
+            <div className="mb-6">
+              <div className="flex items-center justify-center">
+                <motion.img
+                  src="https://i.postimg.cc/YqZzTTR6/app.jpg"
+                  alt="Logo"
+                  className="w-8 h-8 rounded-lg"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                />
+                
+                {/* API Docs Button - Only visible when expanded */}
+                <AnimatePresence>
+                  {(isExpanded || isMobileMenuOpen) && (
+                    <motion.button
+                      onClick={() => {
+                        navigate('/api-docs');
+                        if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+                      }}
+                      className="ml-3 flex justify-center items-center p-1.5 bg-green-700 hover:bg-green-600 rounded-lg transition-colors w-8 h-8"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: 0.3 }}
+                      title="API Documentation"
+                    >
+                      <Code className="h-4 w-4 text-white" />
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
 
             {navItems.map((item, index) => (

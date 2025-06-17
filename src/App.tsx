@@ -23,8 +23,10 @@ import CreatePhotoAvatarPage from './pages/CreatePhotoAvatarPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import InfluencersPage from './pages/InfluencersPage';
 import VideosPage from './pages/VideosPage';
-import WorkflowPage from './pages/WorkflowPage';
+import WorkflowListPage from './pages/WorkflowListPage';
+import WorkflowBuilderPage from './pages/WorkflowBuilderPage';
 import PodcastStudioPage from './pages/PodcastStudioPage';
+import ApiDocsPage from './pages/ApiDocsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.currentUser);
@@ -194,7 +196,15 @@ function App() {
             path="workflow"
             element={
               <ProtectedRoute>
-                <WorkflowPage />
+                <WorkflowListPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="workflow/:id"
+            element={
+              <ProtectedRoute>
+                <WorkflowBuilderPage />
               </ProtectedRoute>
             }
           />
@@ -215,7 +225,25 @@ function App() {
               </ProtectedRoute>
             }
           />
+          <Route
+            path="api-docs"
+            element={
+              <ProtectedRoute>
+                <ApiDocsPage />
+              </ProtectedRoute>
+            }
+          />
         </Route>
+
+        {/* API docs route without Layout */}
+        <Route
+          path="/api-docs"
+          element={
+            <ProtectedRoute>
+              <ApiDocsPage />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
       {user && <Chatbot />}
     </BrowserRouter>
