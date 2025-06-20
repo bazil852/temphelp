@@ -7,13 +7,13 @@
   to = "/index.html"
   status = 200
 
-# [[redirects]]
-#   from = "/api/webhooks/*"
-#   to = "/.netlify/functions/webhook"
-#   status = 200
-#   force = true
-#   methods = ["POST", "OPTIONS"]
-#   headers = {Access-Control-Allow-Origin = "*"}
+[[redirects]]
+  from = "/api/webhooks/*"
+  to = "/.netlify/functions/webhook"
+  status = 200
+  force = true
+  methods = ["POST", "OPTIONS"]
+  headers = {Access-Control-Allow-Origin = "*"}
 
 [build.environment]
   VITE_SUPABASE_URL = "https://uiucmdovylwgfileuhpg.supabase.co"

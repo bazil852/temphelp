@@ -37,97 +37,6 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
       });
   }, [fetchInfluencers]);
 
-  // Find the connected webhook trigger node
-  const getConnectedWebhookNode = () => {
-    const incomingEdge = edges.find(edge => edge.target === node.id);
-    if (!incomingEdge) return null;
-    
-    const sourceNode = nodes.find(n => n.id === incomingEdge.source);
-    if (!sourceNode || sourceNode.type !== 'trigger') return null;
-    
-    return sourceNode.data.config.triggerType === 'webhook' ? sourceNode : null;
-  };
-
-  // Find connected Generate Video node
-  const getConnectedGenerateVideoNode = () => {
-    const incomingEdge = edges.find(edge => edge.target === node.id);
-    if (!incomingEdge) return null;
-    
-    const sourceNode = nodes.find(n => n.id === incomingEdge.source);
-    if (!sourceNode || sourceNode.type !== 'action' || sourceNode.data.config.action !== 'generate_video') return null;
-    
-    return sourceNode;
-  };
-
-  // Find connected Gen AI nodes
-  const getConnectedGenAiNode = () => {
-    const incomingEdge = edges.find(edge => edge.target === node.id);
-    if (!incomingEdge) return null;
-    
-    const sourceNode = nodes.find(n => n.id === incomingEdge.source);
-    if (!sourceNode || sourceNode.type !== 'gen-ai') return null;
-    
-    return sourceNode;
-  };
-
-  const webhookNode = getConnectedWebhookNode();
-  const generateVideoNode = getConnectedGenerateVideoNode();
-  const genAiNode = getConnectedGenAiNode();
-  const webhookPromptPath = webhookNode?.data.config.promptParameter;
-  const { influencers, fetchInfluencers } = useInfluencerStore();
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    setIsLoading(true);
-    fetchInfluencers()
-      .then(() => {
-        console.log('Influencers loaded:', influencers);
-        setIsLoading(false);
-      })
-      .catch(error => {
-        console.error('Error loading influencers:', error);
-        setIsLoading(false);
-      });
-  }, [fetchInfluencers]);
-
-  // Find the connected webhook trigger node
-  const getConnectedWebhookNode = () => {
-    const incomingEdge = edges.find(edge => edge.target === node.id);
-    if (!incomingEdge) return null;
-    
-    const sourceNode = nodes.find(n => n.id === incomingEdge.source);
-    if (!sourceNode || sourceNode.type !== 'trigger') return null;
-    
-    return sourceNode.data.config.triggerType === 'webhook' ? sourceNode : null;
-  };
-
-  // Find connected Generate Video node
-  const getConnectedGenerateVideoNode = () => {
-    const incomingEdge = edges.find(edge => edge.target === node.id);
-    if (!incomingEdge) return null;
-    
-    const sourceNode = nodes.find(n => n.id === incomingEdge.source);
-    if (!sourceNode || sourceNode.type !== 'action' || sourceNode.data.config.action !== 'generate_video') return null;
-    
-    return sourceNode;
-  };
-
-  // Find connected Gen AI nodes
-  const getConnectedGenAiNode = () => {
-    const incomingEdge = edges.find(edge => edge.target === node.id);
-    if (!incomingEdge) return null;
-    
-    const sourceNode = nodes.find(n => n.id === incomingEdge.source);
-    if (!sourceNode || sourceNode.type !== 'gen-ai') return null;
-    
-    return sourceNode;
-  };
-
-  const webhookNode = getConnectedWebhookNode();
-  const generateVideoNode = getConnectedGenerateVideoNode();
-  const genAiNode = getConnectedGenAiNode();
-  const webhookPromptPath = webhookNode?.data.config.promptParameter;
-
   const handleChange = (key: string, value: any) => {
     const newConfig = { ...config, [key]: value };
     setConfig(newConfig);
@@ -139,67 +48,43 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
       case 'trigger':
         return (
           <>
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-white">
-                Trigger Type
-                Trigger Type
-              </label>
-              <select
-                value={config.triggerType || ''}
-                onChange={(e) => handleChange('triggerType', e.target.value)}
-              <select
-                value={config.triggerType || ''}
-                onChange={(e) => handleChange('triggerType', e.target.value)}
-                className="w-full px-3 py-2 bg-gray-800 text-white border border-gray-700 rounded-md focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
-              >
-                <option value="">Select trigger type</option>
-                <option value="webhook">Webhook Trigger</option>
-                <option value="video_generated">Video Generated</option>
-                <option value="video_failed">Video Failed</option>
-                <option value="influencer_created">Influencer Created</option>
-              </select>
-              {config.triggerType === 'webhook' && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-white">
-                    Prompt Parameter
-                  </label>
-                  <input
-                    type="text"
-                    value={config.promptParameter || ''}
-                    onChange={(e) => handleChange('promptParameter', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 text-white border border-gray-700 rounded-md focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
-                    placeholder="e.g. data.prompt or message.text"
-                  />
-                  <p className="mt-1 text-xs text-gray-400">
-                    Specify the JSON path to extract the prompt from the webhook payload
-                  </p>
-                </div>
-              )}
-              >
-                <option value="">Select trigger type</option>
-                <option value="webhook">Webhook Trigger</option>
-                <option value="video_generated">Video Generated</option>
-                <option value="video_failed">Video Failed</option>
-                <option value="influencer_created">Influencer Created</option>
-              </select>
-              {config.triggerType === 'webhook' && (
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-white">
-                    Prompt Parameter
-                  </label>
-                  <input
-                    type="text"
-                    value={config.promptParameter || ''}
-                    onChange={(e) => handleChange('promptParameter', e.target.value)}
-                    className="w-full px-3 py-2 bg-gray-800 text-white border border-gray-700 rounded-md focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
-                    placeholder="e.g. data.prompt or message.text"
-                  />
-                  <p className="mt-1 text-xs text-gray-400">
-                    Specify the JSON path to extract the prompt from the webhook payload
-                  </p>
-                </div>
-              )}
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">
+                  Trigger Type
+                </label>
+                <select
+                  value={config.triggerType || ''}
+                  onChange={(e) => handleChange('triggerType', e.target.value)}
+                  className="w-full px-3 py-2 bg-white/5 text-white border border-white/10 rounded-lg focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
+                >
+                  <option value="">Select trigger type</option>
+                  <option value="webhook">Webhook Trigger</option>
+                  <option value="video_generated">Video Generated</option>
+                  <option value="video_failed">Video Failed</option>
+                  <option value="influencer_created">Influencer Created</option>
+                </select>
+              </div>
             </div>
+
+            {config.triggerType === 'webhook' && (
+              <div>
+                <label className="block text-sm font-medium text-white mb-2">
+                  Prompt Parameter Path
+                </label>
+                <input
+                  type="text"
+                  value={config.promptParameter || ''}
+                  onChange={(e) => handleChange('promptParameter', e.target.value)}
+                  className="w-full px-3 py-2 bg-white/5 text-white border border-white/10 rounded-lg focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
+                  placeholder="e.g. data.prompt or message.text"
+                />
+                <p className="mt-1 text-xs text-gray-400">
+                  Specify the JSON path to extract the prompt from the webhook payload.
+                  Use the "Test Webhook" button in the canvas to capture real data and map paths.
+                </p>
+              </div>
+            )}
           </>
         );
 
@@ -285,12 +170,6 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
                     className="w-full px-3 py-2 bg-white/5 text-white border border-white/10 rounded-lg focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
                   >
                     <option value="manual">Manual Input</option>
-                    {webhookNode && (
-                      <option value="webhook">From Webhook: {webhookNode.data.config.promptParameter}</option>
-                    )}
-                    {genAiNode && (
-                      <option value="gen-ai">From Gen AI Response</option>
-                    )}
                   </select>
                   <select
                     value={config.scriptSource || 'manual'}
@@ -298,12 +177,6 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
                     className="w-full px-3 py-2 bg-white/5 text-white border border-white/10 rounded-lg focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
                   >
                     <option value="manual">Manual Input</option>
-                    {webhookNode && (
-                      <option value="webhook">From Webhook: {webhookNode.data.config.promptParameter}</option>
-                    )}
-                    {genAiNode && (
-                      <option value="gen-ai">From Gen AI Response</option>
-                    )}
                   </select>
                 </div>
                 {config.scriptSource === 'manual' && (
@@ -318,16 +191,6 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
                       rows={4}
                       placeholder="Enter the script for the video..."
                     />
-                  </div>
-                )}
-                {config.scriptSource === 'webhook' && webhookNode && (
-                  <div className="text-sm text-gray-300">
-                    Script will be automatically extracted from the webhook payload using the path: <code className="bg-white/5 px-2 py-1 rounded">{webhookNode.data.config.promptParameter}</code>
-                  </div>
-                )}
-                {config.scriptSource === 'gen-ai' && genAiNode && (
-                  <div className="text-sm text-gray-300">
-                    Script will be automatically taken from the Gen AI node's response
                   </div>
                 )}
               </>
@@ -345,16 +208,6 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
                       rows={4}
                       placeholder="Enter the script for the video..."
                     />
-                  </div>
-                )}
-                {config.scriptSource === 'webhook' && webhookNode && (
-                  <div className="text-sm text-gray-300">
-                    Script will be automatically extracted from the webhook payload using the path: <code className="bg-white/5 px-2 py-1 rounded">{webhookNode.data.config.promptParameter}</code>
-                  </div>
-                )}
-                {config.scriptSource === 'gen-ai' && genAiNode && (
-                  <div className="text-sm text-gray-300">
-                    Script will be automatically taken from the Gen AI node's response
                   </div>
                 )}
               </>
@@ -407,9 +260,6 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
                   className="w-full px-3 py-2 bg-gray-800 text-white border border-gray-700 rounded-md focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
                 >
                   <option value="manual">Manual Input</option>
-                  {webhookNode && (
-                    <option value="webhook">From Webhook: {webhookNode.data.config.promptParameter}</option>
-                  )}
                 </select>
               </div>
               {config.promptSource === 'manual' && (
@@ -424,13 +274,6 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
                     rows={4}
                     placeholder="Enter the system prompt for the AI model..."
                   />
-                </div>
-              )}
-              {config.promptSource === 'webhook' && webhookNode && (
-                <div className="mt-4">
-                  <p className="text-sm text-gray-400">
-                    System prompt will be automatically extracted from the webhook payload using the path: <code className="bg-gray-800 px-1 py-0.5 rounded">{webhookNode.data.config.promptParameter}</code>
-                  </p>
                 </div>
               )}
             </div>
@@ -466,26 +309,6 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
                       placeholder="Enter the return URL..."
                     />
                   </div>
-                  {generateVideoNode && (
-                    <div className="mt-4">
-                      <label className="block text-sm font-medium text-white">
-                        Video Handling
-                      </label>
-                      <select
-                        value={config.videoHandling || 'notification'}
-                        onChange={(e) => handleChange('videoHandling', e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-800 text-white border border-gray-700 rounded-md focus:border-[#c9fffc] focus:ring-1 focus:ring-[#c9fffc]"
-                      >
-                        <option value="notification">Notification Only</option>
-                        <option value="include">Include Generated Video</option>
-                      </select>
-                      <p className="mt-1 text-xs text-gray-400">
-                        {config.videoHandling === 'notification' 
-                          ? 'Only send a notification when the video is ready'
-                          : 'Include the generated video in the response'}
-                      </p>
-                    </div>
-                  )}
                 </>
               )}
             </div>
@@ -795,50 +618,146 @@ export function NodeProperties({ node, onClose, onUpdate, nodes, edges }: NodePr
   return (
     <AnimatePresence>
       <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-        className="fixed right-0 top-0 h-full w-80 bg-white/10 backdrop-blur-xl border-l border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
       >
-        <div className="p-6 h-full flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-medium text-white">{node.data.label}</h2>
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="glass-panel w-full max-w-2xl max-h-[85vh] overflow-hidden"
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-6 border-b border-white/10">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4DE0F9] to-[#A855F7] flex items-center justify-center">
+                <span className="text-white text-sm font-bold">
+                  {node.data.type === 'trigger' ? '⚡' : 
+                   node.data.type === 'action' ? '🎬' :
+                   node.data.type === 'gen-ai' ? '🧠' :
+                   node.data.type === 'http-request' ? '🌐' :
+                   node.data.type === 'switch' ? '🔀' :
+                   node.data.type === 'loop' ? '🔄' :
+                   node.data.type === 'sequence' ? '📋' :
+                   node.data.type === 'delay' ? '⏱️' :
+                   node.data.type === 'filter' ? '🔍' : '⚙️'}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">{node.data.label}</h2>
+                <p className="text-sm text-gray-400 capitalize">{node.data.type} Node</p>
+              </div>
+            </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/5 rounded-lg transition-colors group"
             >
-              <X className="h-5 w-5 text-gray-300 hover:text-white" />
+              <X className="h-5 w-5 text-gray-400 group-hover:text-white" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+
+          {/* Modal Content */}
+          <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
             {renderFields()}
           </div>
-        </div>
+
+          {/* Modal Footer */}
+          <div className="flex items-center justify-between p-6 border-t border-white/10 bg-white/5">
+            <div className="text-sm text-gray-400">
+              Node ID: <code className="text-[#4DE0F9]">{node.id}</code>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-[#4DE0F9] text-black rounded-lg hover:bg-[#A855F7] transition-colors font-medium"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
     <AnimatePresence>
       <motion.div
-        initial={{ x: '100%' }}
-        animate={{ x: 0 }}
-        exit={{ x: '100%' }}
-        transition={{ type: 'spring', damping: 20, stiffness: 300 }}
-        className="fixed right-0 top-0 h-full w-80 bg-white/10 backdrop-blur-xl border-l border-white/20 shadow-[0_0_30px_rgba(255,255,255,0.15)]"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+        onClick={(e) => e.target === e.currentTarget && onClose()}
       >
-        <div className="p-6 h-full flex flex-col">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-lg font-medium text-white">{node.data.label}</h2>
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0, y: 20 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.9, opacity: 0, y: 20 }}
+          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+          className="glass-panel w-full max-w-2xl max-h-[85vh] overflow-hidden"
+        >
+          {/* Modal Header */}
+          <div className="flex items-center justify-between p-6 border-b border-white/10">
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#4DE0F9] to-[#A855F7] flex items-center justify-center">
+                <span className="text-white text-sm font-bold">
+                  {node.data.type === 'trigger' ? '⚡' : 
+                   node.data.type === 'action' ? '🎬' :
+                   node.data.type === 'gen-ai' ? '🧠' :
+                   node.data.type === 'http-request' ? '🌐' :
+                   node.data.type === 'switch' ? '🔀' :
+                   node.data.type === 'loop' ? '🔄' :
+                   node.data.type === 'sequence' ? '📋' :
+                   node.data.type === 'delay' ? '⏱️' :
+                   node.data.type === 'filter' ? '🔍' : '⚙️'}
+                </span>
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold text-white">{node.data.label}</h2>
+                <p className="text-sm text-gray-400 capitalize">{node.data.type} Node</p>
+              </div>
+            </div>
             <button
               onClick={onClose}
-              className="p-2 hover:bg-white/5 rounded-lg transition-colors"
+              className="p-2 hover:bg-white/5 rounded-lg transition-colors group"
             >
-              <X className="h-5 w-5 text-gray-300 hover:text-white" />
+              <X className="h-5 w-5 text-gray-400 group-hover:text-white" />
             </button>
           </div>
-          <div className="flex-1 overflow-y-auto">
+
+          {/* Modal Content */}
+          <div className="p-6 overflow-y-auto max-h-[calc(85vh-140px)]">
             {renderFields()}
           </div>
-        </div>
+
+          {/* Modal Footer */}
+          <div className="flex items-center justify-between p-6 border-t border-white/10 bg-white/5">
+            <div className="text-sm text-gray-400">
+              Node ID: <code className="text-[#4DE0F9]">{node.id}</code>
+            </div>
+            <div className="flex space-x-3">
+              <button
+                onClick={onClose}
+                className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 bg-[#4DE0F9] text-black rounded-lg hover:bg-[#A855F7] transition-colors font-medium"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </motion.div>
       </motion.div>
     </AnimatePresence>
   );

@@ -332,6 +332,41 @@ Key requirements:
 
 The workflow builder now has comprehensive n8n-like functionality with all essential node types!
 
+**WEBHOOK TESTING FEATURE ADDED**: ✅ **"Listen for Test Webhook" Functionality**
+- **Test Webhook Endpoint**: Created `netlify/functions/test-webhook.ts` for capturing test data
+- **Database Table**: Added `webhook_test_data` table for storing captured webhook payloads
+- **Webhook Test Service**: Created `webhookTestService.ts` for managing test sessions and data polling
+- **Data Viewer Component**: Built `WebhookDataViewer.tsx` with interactive tree view of captured data
+- **NodeProperties Integration**: Added test webhook UI to trigger node configuration
+
+**Features**:
+- **Live Webhook Capture**: Generate unique test URLs and capture real webhook data
+- **Interactive Data Explorer**: Tree view with expandable objects/arrays, type indicators, and path copying
+- **One-Click Path Mapping**: Click "Use" buttons to automatically populate JSON paths in configuration
+- **Real-time Polling**: Automatically detects when webhook data is received
+- **URL Management**: Copy test webhook URLs with one click
+- **Visual Feedback**: Loading states, success indicators, and real-time status updates
+
+**Workflow**: 
+1. User clicks "Listen for Test Webhook" in trigger node properties
+2. System generates unique test URL and starts listening
+3. User sends test data to the generated URL from external system
+4. Captured data appears in interactive tree viewer
+5. User can explore data structure and click "Use" to map JSON paths
+6. Automatically populates prompt parameter paths for workflow configuration
+
+This matches n8n's beloved webhook testing feature, making workflow development much easier!
+
+**NODE PROPERTIES MODAL**: ✅ **Converted from Sidebar to Modal (n8n-style)**
+- **Modal Overlay Design**: Converted NodeProperties from right sidebar to centered modal
+- **Professional Header**: Node icon, title, and type information with gradient styling
+- **Better UX**: Click outside to close, proper z-index layering, smooth animations
+- **Improved Layout**: Wider content area (max-w-2xl) for better form readability
+- **Action Footer**: Save/Cancel buttons with node ID display for debugging
+- **Icon System**: Emoji icons for different node types (⚡ triggers, 🧠 AI, 🌐 HTTP, etc.)
+
+This provides a more modern, n8n-like experience where node configuration opens in focused modal overlays rather than sidebar panels.
+
 ## Next Steps and Action Items
 
 **Planner Instructions for Executor:**
