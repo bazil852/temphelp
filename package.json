@@ -29,6 +29,7 @@
     "react-webcam": "^7.2.0",
     "reactflow": "^11.11.4",
     "sonner": "^2.0.3",
+    "uuid": "^11.1.0",
     "wavesurfer.js": "^7.9.4",
     "zustand": "^4.5.2"
   },
