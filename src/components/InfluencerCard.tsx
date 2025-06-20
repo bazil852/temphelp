@@ -11,8 +11,6 @@ import {
   Power,
   Trash2,
   X
-  Trash2,
-  X
 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Influencer } from '../types';
@@ -22,7 +20,6 @@ import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { motion } from 'framer-motion';
 import { useInfluencerStore } from '../store/influencerStore';
-import { CardShell } from './CardShell';
 import { CardShell } from './CardShell';
 
 interface InfluencerCardProps {
@@ -68,27 +65,10 @@ function ConfirmMotionModal({
               Create a new look with motion capabilities
             </p>
           </div>
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 20 }}
-        transition={{ duration: 0.2 }}
-        className="bg-[#1a1a1a] rounded-xl p-6 max-w-md w-full border border-white/10"
-      >
-        <div className="flex justify-between items-start mb-6">
-          <div>
-            <h3 className="text-xl font-semibold text-white">Add Motion</h3>
-            <p className="mt-1 text-sm text-gray-400">
-              Create a new look with motion capabilities
-            </p>
-          </div>
           <button
             onClick={onClose}
             className="text-gray-400 hover:text-white transition-colors"
-            className="text-gray-400 hover:text-white transition-colors"
           >
-            <X className="h-5 w-5" />
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -276,7 +256,6 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
       console.log(`Fetched groupId: ${groupId}`);
 
       // 2. Add motion to the influencer using group_id, prompt, and motionType
-      // 2. Add motion to the influencer using group_id, prompt, and motionType
       const motionResponse = await fetch(
         'https://api.heygen.com/v2/photo_avatar/add_motion',
         {
@@ -286,11 +265,6 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
             'content-type': 'application/json',
             'x-api-key': currentUser.heygenApiKey
           },
-          body: JSON.stringify({ 
-            id: groupId,
-            prompt: prompt,
-            motion_type: motionType
-          })
           body: JSON.stringify({ 
             id: groupId,
             prompt: prompt,
@@ -395,7 +369,6 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
               disabled={!!isProcessing}
               onClick={() => !isProcessing && setShowMotionModal(true)}
               className={`absolute top-3 right-12 z-10 p-2 rounded-full transition-all ${
-              className={`absolute top-3 right-12 z-10 p-2 rounded-full transition-all ${
                 isProcessing
                   ? 'bg-white/10 opacity-50 cursor-not-allowed'
                   : 'bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/20'
@@ -492,36 +465,18 @@ export const InfluencerCard: React.FC<InfluencerCardProps> = ({
                     : hasVoice ? 'Record' : 'Setup Voice Required'}
                 </span>
               </button>
-
-              {/* Voice Setup Button */}
-              {!hasVoice && (
-                <button
-                  onClick={() => setShowVoiceSetupModal(true)}
-                  className="w-10 h-10 rounded-full backdrop-blur-md flex items-center justify-center transition-all border bg-amber-500/10 hover:bg-amber-500/20 border-amber-500/20 group/button"
-                  title="Setup voice"
-                >
-                  <Mic className="h-5 w-5 text-white" />
-                  <span className="absolute -top-8 scale-0 group-hover/button:scale-100 transition-transform bg-black/80 text-white text-xs py-1 px-2 rounded">
-                    Setup Voice
-                  </span>
-                </button>
-              )}
             </div>
-      </CardShell>
-      </CardShell>
+        </CardShell>
 
       {/* Modals */}
-      {/* Only show modals if the influencer is not processing */}
-      {!isProcessing && showCreateModal && (
+      {showCreateModal && (
         <CreateVideoModal
-          influencerId={influencer.id}
-          templateId={influencer.templateId}
           influencer={influencer}
           onClose={() => setShowCreateModal(false)}
         />
       )}
 
-      {!isProcessing && showVoiceSetupModal && (
+      {showVoiceSetupModal && (
         <VoiceSetupModal
           influencer={influencer}
           onClose={() => setShowVoiceSetupModal(false)}

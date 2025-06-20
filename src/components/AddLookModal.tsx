@@ -4,7 +4,6 @@ import { uploadImageToSupabase } from '../services/heygenServices';
 import { useAuthStore } from '../store/authStore';
 import { supabase } from '../lib/supabase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { motion, AnimatePresence } from 'framer-motion';
 
 interface AddLookModalProps {
   onClose: () => void;
@@ -13,7 +12,6 @@ interface AddLookModalProps {
     id: string;
     templateId: string;
     name: string;
-    voice_id?: string;
     voice_id?: string;
   };
 }
@@ -132,14 +130,13 @@ export default function AddLookModal({ onClose, onSuccess, influencer }: AddLook
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!prompt.trim() || !groupId) return;
+    if (!prompt.trim() || !groupId || !lookName.trim()) return;
 
     setIsSubmitting(true);
     setGeneratedImages(null);
     setSelectedImageIndexes([]);
     setGenerationId(null);
     setError('');
-    setShowGeneratedSection(true);
     setShowGeneratedSection(true);
 
     try {
@@ -306,51 +303,7 @@ export default function AddLookModal({ onClose, onSuccess, influencer }: AddLook
                   {error}
                 </div>
               )}
-              {error && (
-                <div className="mb-4 p-3 bg-red-500/10 text-red-400 rounded-lg border border-red-500/20">
-                  {error}
-                </div>
-              )}
 
-              <form onSubmit={handleSubmit} className="space-y-6 pb-4">
-                <div className="grid grid-cols-3 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Orientation</label>
-                    <select
-                      value={orientation}
-                      onChange={(e) => setOrientation(e.target.value as typeof ORIENTATION_OPTIONS[number])}
-                      className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
-                    >
-                      {ORIENTATION_OPTIONS.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Pose</label>
-                    <select
-                      value={pose}
-                      onChange={(e) => setPose(e.target.value as typeof POSE_OPTIONS[number])}
-                      className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
-                    >
-                      {POSE_OPTIONS.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-300 mb-2">Style</label>
-                    <select
-                      value={style}
-                      onChange={(e) => setStyle(e.target.value as typeof STYLE_OPTIONS[number])}
-                      className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-2 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
-                    >
-                      {STYLE_OPTIONS.map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
               <form onSubmit={handleSubmit} className="space-y-6 pb-4">
                 <div className="grid grid-cols-3 gap-4">
                   <div>
@@ -405,20 +358,6 @@ export default function AddLookModal({ onClose, onSuccess, influencer }: AddLook
                     required
                   />
                 </div>
-                <div>
-                  <label htmlFor="prompt" className="block text-sm font-medium text-gray-300 mb-2">
-                    Prompt
-                  </label>
-                  <textarea
-                    id="prompt"
-                    value={prompt}
-                    onChange={(e) => setPrompt(e.target.value)}
-                    rows={6}
-                    className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
-                    placeholder="Describe the look you want to create..."
-                    required
-                  />
-                </div>
 
                 <div>
                   <label htmlFor="lookName" className="block text-sm font-medium text-gray-300 mb-2">
@@ -434,46 +373,7 @@ export default function AddLookModal({ onClose, onSuccess, influencer }: AddLook
                     required
                   />
                 </div>
-                <div>
-                  <label htmlFor="lookName" className="block text-sm font-medium text-gray-300 mb-2">
-                    Look Name
-                  </label>
-                  <input
-                    type="text"
-                    id="lookName"
-                    value={lookName}
-                    onChange={(e) => setLookName(e.target.value)}
-                    className="block w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-sm text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-cyan-500 transition"
-                    placeholder="Enter a name for this look set..."
-                    required
-                  />
-                </div>
 
-                <div className="flex justify-end gap-3">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg text-white transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !prompt.trim() || !groupId}
-                    className="px-4 py-2 bg-[#c9fffc] text-black rounded-lg hover:bg-[#a0fcf9] disabled:opacity-50 transition-colors inline-flex items-center"
-                  >
-                    {isSubmitting ? (
-                      <>
-                        <Loader2 className="animate-spin h-4 w-4 mr-2" />
-                        Generating...
-                      </>
-                    ) : (
-                      'Generate Looks'
-                    )}
-                  </button>
-                </div>
-              </form>
-            </div>
                 <div className="flex justify-end gap-3">
                   <button
                     type="button"
@@ -587,7 +487,6 @@ export default function AddLookModal({ onClose, onSuccess, influencer }: AddLook
               )}
             </AnimatePresence>
           </div>
-        </motion.div>
         </motion.div>
 
         {/* Expanded Image Modal */}
