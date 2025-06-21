@@ -55,9 +55,7 @@ export default function FloatingSidebar() {
     { icon: Home, label: 'Home', path: '/dashboard' },
     { icon: Users, label: 'Influencers', path: '/influencers' },
     { icon: Film, label: 'Videos', path: '/videos' },
-    { icon: Workflow, label: 'Workflow', path: '/workflow' },
-    { icon: Mic, label: 'Podcast Studio', path: '/podcast-studio' },
-    { icon: Workflow, label: 'Workflow', path: '/workflow' },
+    { icon: Workflow, label: 'Automation', path: '/automation-builder' },
     { icon: Mic, label: 'Podcast Studio', path: '/podcast-studio' },
     { icon: Webhook, label: 'Automations', path: '/webhooks', onClick: handleAutomationClick },
     { isSeparator: true },
@@ -104,108 +102,116 @@ export default function FloatingSidebar() {
             ease: [0.16, 1, 0.3, 1]
           }}
         >
-          <div className="flex flex-col h-full py-6">
-            {/* Logo and API Docs Button */}
-            <div className="mb-6">
-              <div className="flex items-center justify-center">
-                <motion.img
-                  src="https://i.postimg.cc/YqZzTTR6/app.jpg"
-                  alt="Logo"
-                  className="w-8 h-8 rounded-lg"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 }}
-                />
-                
-                {/* API Docs Button - Only visible when expanded */}
-                <AnimatePresence>
-                  {(isExpanded || isMobileMenuOpen) && (
-                    <motion.button
-                      onClick={() => {
-                        navigate('/api-docs');
-                        if (isMobileMenuOpen) setIsMobileMenuOpen(false);
-                      }}
-                      className="ml-3 flex justify-center items-center p-1.5 bg-green-700 hover:bg-green-600 rounded-lg transition-colors w-8 h-8"
-                      initial={{ opacity: 0, scale: 0.8 }}
-                      animate={{ opacity: 1, scale: 1 }}
-                      transition={{ delay: 0.3 }}
-                      title="API Documentation"
-                    >
-                      <Code className="h-4 w-4 text-white" />
-                    </motion.button>
-                  )}
-                </AnimatePresence>
+          <div className="flex flex-col h-full">
+            {/* Header section - fixed at top */}
+            <div className="flex-shrink-0 py-6">
+              {/* Logo and API Docs Button */}
+              <div className="mb-6">
+                <div className="flex items-center justify-center">
+                  <motion.img
+                    src="https://i.postimg.cc/YqZzTTR6/app.jpg"
+                    alt="Logo"
+                    className="w-8 h-8 rounded-lg"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.2 }}
+                  />
+                  
+                  {/* API Docs Button - Only visible when expanded */}
+                  <AnimatePresence>
+                    {(isExpanded || isMobileMenuOpen) && (
+                      <motion.button
+                        onClick={() => {
+                          navigate('/api-docs');
+                          if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+                        }}
+                        className="ml-3 flex justify-center items-center p-1.5 bg-green-700 hover:bg-green-600 rounded-lg transition-colors w-8 h-8"
+                        initial={{ opacity: 0, scale: 0.8 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 0.3 }}
+                        title="API Documentation"
+                      >
+                        <Code className="h-4 w-4 text-white" />
+                      </motion.button>
+                    )}
+                  </AnimatePresence>
+                </div>
               </div>
             </div>
 
-            {navItems.map((item, index) => (
-              <React.Fragment key={item.label || `separator-${index}`}>
-                {item.isSeparator ? (
-                  <div className="my-4 border-t border-white/10" />
-                ) : (
-                  <motion.div
-                    className="relative"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                  >
-                    <button
-                      onClick={() => {
-                        item.onClick?.();
-                        if (isMobileMenuOpen) setIsMobileMenuOpen(false);
-                        if (item.path && !item.onClick) navigate(item.path);
-                      }}
-                      className="w-full flex items-center px-6 py-4 text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
+            {/* Scrollable content area */}
+            <div className="flex-1 overflow-y-auto scrollbar-hide">
+              {navItems.map((item, index) => (
+                <React.Fragment key={item.label || `separator-${index}`}>
+                  {item.isSeparator ? (
+                    <div className="my-4 border-t border-white/10" />
+                  ) : (
+                    <motion.div
+                      className="relative"
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.1 }}
                     >
-                      <item.icon className="h-5 w-5" />
-                      <AnimatePresence>
-                        {(isExpanded || isMobileMenuOpen) && (
-                          <motion.span
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: -20 }}
-                            className="ml-4 text-sm font-medium whitespace-nowrap"
-                          >
-                            {item.label}
-                          </motion.span>
-                        )}
-                      </AnimatePresence>
-                    </button>
-                  </motion.div>
-                )}
-              </React.Fragment>
-            ))}
-
-            {/* Logout Button */}
-            {user && (
-              <motion.div
-                className="relative mt-auto"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: navItems.length * 0.1 }}
-              >
-                <button
-                  onClick={() => {
-                    handleLogout();
-                    if (isMobileMenuOpen) setIsMobileMenuOpen(false);
-                  }}
-                  className="w-full flex items-center px-6 py-4 text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors"
-                >
-                  <LogOut className="h-5 w-5" />
-                  <AnimatePresence>
-                    {(isExpanded || isMobileMenuOpen) && (
-                      <motion.span
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -20 }}
-                        className="ml-4 text-sm font-medium whitespace-nowrap"
+                      <button
+                        onClick={() => {
+                          item.onClick?.();
+                          if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+                          if (item.path && !item.onClick) navigate(item.path);
+                        }}
+                        className="w-full flex items-center px-6 py-4 text-gray-300 hover:text-white hover:bg-white/5 transition-colors"
                       >
-                        Logout
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </button>
-              </motion.div>
+                        <item.icon className="h-5 w-5" />
+                        <AnimatePresence>
+                          {(isExpanded || isMobileMenuOpen) && (
+                            <motion.span
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: -20 }}
+                              className="ml-4 text-sm font-medium whitespace-nowrap"
+                            >
+                              {item.label}
+                            </motion.span>
+                          )}
+                        </AnimatePresence>
+                      </button>
+                    </motion.div>
+                  )}
+                </React.Fragment>
+              ))}
+            </div>
+
+            {/* Logout Button - fixed at bottom */}
+            {user && (
+              <div className="flex-shrink-0 border-t border-white/10 pt-4 pb-6">
+                <motion.div
+                  className="relative"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: navItems.length * 0.1 }}
+                >
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      if (isMobileMenuOpen) setIsMobileMenuOpen(false);
+                    }}
+                    className="w-full flex items-center px-6 py-4 text-red-400 hover:text-red-300 hover:bg-white/5 transition-colors"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <AnimatePresence>
+                      {(isExpanded || isMobileMenuOpen) && (
+                        <motion.span
+                          initial={{ opacity: 0, x: -20 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          exit={{ opacity: 0, x: -20 }}
+                          className="ml-4 text-sm font-medium whitespace-nowrap"
+                        >
+                          Logout
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </motion.div>
+              </div>
             )}
           </div>
         </motion.div>

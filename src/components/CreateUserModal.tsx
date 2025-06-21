@@ -74,10 +74,10 @@ export default function CreateUserModal({ onClose }: CreateUserModalProps) {
 
       if (userError) throw userError;
 
-      // 3. Initialize user_usage record
+      // 3. Initialize user_usage record (upsert - insert if not exists, update if exists)
       const { error: usageError } = await supabase
         .from('user_usage')
-        .insert([{
+        .upsert([{
           user_id: authData.user.id,
           avatars_created: 0,
           video_minutes_used: 0,
@@ -85,7 +85,10 @@ export default function CreateUserModal({ onClose }: CreateUserModalProps) {
           automation: false,
           ai_editing: false,
           videos_created: 0
-        }]);
+        }], {
+          onConflict: 'user_id',
+          ignoreDuplicates: false
+        });
 
       if (usageError) throw usageError;
 

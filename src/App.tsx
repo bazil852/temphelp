@@ -23,8 +23,8 @@ import CreatePhotoAvatarPage from './pages/CreatePhotoAvatarPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
 import InfluencersPage from './pages/InfluencersPage';
 import VideosPage from './pages/VideosPage';
-import WorkflowListPage from './pages/WorkflowListPage';
-import WorkflowBuilderPage from './pages/WorkflowBuilderPage';
+import AutomationBuilderListPage from './pages/automation-builder/index';
+import AutomationBuilderEditorPage from './pages/AutomationBuilderEditorPage';
 import PodcastStudioPage from './pages/PodcastStudioPage';
 import ApiDocsPage from './pages/ApiDocsPage';
 
@@ -193,18 +193,18 @@ function App() {
             }
           />
           <Route
-            path="workflow"
+            path="automation-builder"
             element={
               <ProtectedRoute>
-                <WorkflowListPage />
+                <AutomationBuilderListPage />
               </ProtectedRoute>
             }
           />
           <Route
-            path="workflow/:id"
+            path="automation-builder/:id"
             element={
               <ProtectedRoute>
-                <WorkflowBuilderPage />
+                <AutomationBuilderEditorPage />
               </ProtectedRoute>
             }
           />

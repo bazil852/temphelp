@@ -195,6 +195,16 @@ body::before {
   background: rgba(255, 255, 255, 0.05);
 }
 
+/* Hide scrollbar while keeping functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none; /* Internet Explorer 10+ */
+  scrollbar-width: none; /* Firefox */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Safari and Chrome */
+}
+
 /* Loading animation */
 @keyframes pulse-glow {
   0% { box-shadow: 0 0 0 0 rgba(77, 224, 249, 0.4); }
@@ -785,4 +795,182 @@ select option {
 .nav-item.active {
   @apply text-[#4DE0F9] bg-[#4DE0F9]/10;
   border: 1px solid rgba(77, 224, 249, 0.2);
+}
+
+/* Inngest Workflow Kit Dark Theme Overrides */
+.reactflow-wrapper {
+  background: transparent !important;
+}
+
+.react-flow {
+  background: transparent !important;
+}
+
+.react-flow__node {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+  backdrop-filter: blur(20px) !important;
+  border-radius: 12px !important;
+}
+
+.react-flow__node:hover {
+  background: rgba(255, 255, 255, 0.15) !important;
+  border-color: #4DE0F9 !important;
+}
+
+.react-flow__node-default {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+.react-flow__node-input,
+.react-flow__node-output {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  color: white !important;
+}
+
+.react-flow__node-group {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-flow__edge-path {
+  stroke: rgba(77, 224, 249, 0.6) !important;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  stroke: #4DE0F9 !important;
+}
+
+.react-flow__handle {
+  background: #4DE0F9 !important;
+  border: 2px solid rgba(255, 255, 255, 0.3) !important;
+}
+
+.react-flow__handle:hover {
+  background: #A855F7 !important;
+}
+
+.react-flow__controls {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(20px) !important;
+  border-radius: 12px !important;
+}
+
+.react-flow__controls button {
+  background: transparent !important;
+  color: white !important;
+  border: none !important;
+}
+
+.react-flow__controls button:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.react-flow__minimap {
+  background: rgba(0, 0, 0, 0.8) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+}
+
+.react-flow__attribution {
+  background: rgba(0, 0, 0, 0.7) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+  border-radius: 4px !important;
+}
+
+/* Inngest Workflow Kit specific overrides */
+[data-inngest-workflow-kit] {
+  background: transparent !important;
+  color: white !important;
+}
+
+[data-inngest-workflow-kit] .sidebar {
+  background: rgba(255, 255, 255, 0.1) !important;
+  border-left: 1px solid rgba(255, 255, 255, 0.2) !important;
+  backdrop-filter: blur(20px) !important;
+  color: white !important;
+}
+
+[data-inngest-workflow-kit] .node-panel,
+[data-inngest-workflow-kit] .property-panel {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+}
+
+[data-inngest-workflow-kit] input,
+[data-inngest-workflow-kit] textarea,
+[data-inngest-workflow-kit] select {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: white !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 6px !important;
+}
+
+[data-inngest-workflow-kit] input:focus,
+[data-inngest-workflow-kit] textarea:focus,
+[data-inngest-workflow-kit] select:focus {
+  border-color: #4DE0F9 !important;
+  box-shadow: 0 0 0 2px rgba(77, 224, 249, 0.2) !important;
+}
+
+[data-inngest-workflow-kit] button {
+  background: rgba(77, 224, 249, 0.2) !important;
+  color: #4DE0F9 !important;
+  border: 1px solid rgba(77, 224, 249, 0.3) !important;
+  border-radius: 6px !important;
+}
+
+[data-inngest-workflow-kit] button:hover {
+  background: rgba(77, 224, 249, 0.3) !important;
+  border-color: #4DE0F9 !important;
+}
+
+[data-inngest-workflow-kit] .primary-button {
+  background: linear-gradient(135deg, #4DE0F9 0%, #A855F7 100%) !important;
+  color: white !important;
+  border: none !important;
+}
+
+[data-inngest-workflow-kit] .primary-button:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 20px rgba(77, 224, 249, 0.3) !important;
+}
+
+/* Text and labels */
+[data-inngest-workflow-kit] label,
+[data-inngest-workflow-kit] .label,
+[data-inngest-workflow-kit] .text {
+  color: white !important;
+}
+
+[data-inngest-workflow-kit] .muted-text,
+[data-inngest-workflow-kit] .secondary-text {
+  color: rgba(255, 255, 255, 0.7) !important;
+}
+
+/* Dropdown and select styling */
+[data-inngest-workflow-kit] .dropdown,
+[data-inngest-workflow-kit] .select-menu {
+  background: rgba(0, 0, 0, 0.9) !important;
+  border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  border-radius: 8px !important;
+  backdrop-filter: blur(20px) !important;
+}
+
+[data-inngest-workflow-kit] .dropdown-item,
+[data-inngest-workflow-kit] .select-option {
+  color: white !important;
+}
+
+[data-inngest-workflow-kit] .dropdown-item:hover,
+[data-inngest-workflow-kit] .select-option:hover {
+  background: rgba(77, 224, 249, 0.2) !important;
+  color: #4DE0F9 !important;
 }

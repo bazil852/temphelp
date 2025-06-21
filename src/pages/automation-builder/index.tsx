@@ -2,9 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, Settings, Play, Pause, Copy, Trash2, Edit3, Calendar, Tag } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { workflowService, type Workflow } from '../services/workflowService';
+import { workflowService, type Workflow } from '../../services/workflowService';
 
-const WorkflowListPage: React.FC = () => {
+const AutomationBuilderListPage: React.FC = () => {
   const navigate = useNavigate();
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -43,11 +43,11 @@ const WorkflowListPage: React.FC = () => {
   const allTags = Array.from(new Set(workflows.flatMap(w => w.tags)));
 
   const handleCreateWorkflow = () => {
-    navigate('/workflow/new');
+    navigate('/automation-builder/new');
   };
 
   const handleEditWorkflow = (id: string) => {
-    navigate(`/workflow/${id}`);
+    navigate(`/automation-builder/${id}`);
   };
 
   const handleDuplicateWorkflow = async (id: string) => {
@@ -84,7 +84,6 @@ const WorkflowListPage: React.FC = () => {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen">
         <div className="relative">
-          {/* Pulsing circles */}
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0.3, 0.7] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -95,13 +94,6 @@ const WorkflowListPage: React.FC = () => {
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
             className="w-20 h-20 rounded-full bg-[#A855F7] bg-opacity-20 absolute"
           />
-          <motion.div
-            animate={{ scale: [1.4, 1.6, 1.4], opacity: [0.3, 0.1, 0.3] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-            className="w-20 h-20 rounded-full bg-[#4DE0F9] bg-opacity-10 absolute"
-          />
-          
-          {/* Central glowing dot */}
           <motion.div
             animate={{ 
               boxShadow: [
@@ -137,8 +129,8 @@ const WorkflowListPage: React.FC = () => {
             animate={{ x: 0, opacity: 1 }}
             transition={{ delay: 0.2 }}
           >
-            <h1 className="text-2xl font-bold text-white mb-2">Workflows</h1>
-            <p className="text-gray-300">Manage and organize your automation workflows</p>
+            <h1 className="text-2xl font-bold text-white mb-2">Automation Builder</h1>
+            <p className="text-gray-300">Create and manage your Inngest-powered workflows</p>
           </motion.div>
           <motion.button
             initial={{ x: 20, opacity: 0 }}
@@ -163,7 +155,6 @@ const WorkflowListPage: React.FC = () => {
         className="glass-panel px-6 py-4"
       >
         <div className="flex items-center space-x-4">
-          {/* Search */}
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
@@ -175,7 +166,6 @@ const WorkflowListPage: React.FC = () => {
             />
           </div>
 
-          {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
@@ -186,7 +176,6 @@ const WorkflowListPage: React.FC = () => {
             <option value="inactive">Inactive</option>
           </select>
 
-          {/* Tag Filter */}
           {allTags.length > 0 && (
             <select
               onChange={(e) => {
@@ -205,93 +194,60 @@ const WorkflowListPage: React.FC = () => {
           )}
         </div>
 
-        {/* Selected Tags */}
-        <AnimatePresence>
-          {selectedTags.length > 0 && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="flex items-center space-x-2 mt-3"
-            >
-              <span className="text-sm text-gray-300">Selected tags:</span>
-              {selectedTags.map(tag => (
-                <motion.span
-                  key={tag}
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  exit={{ scale: 0 }}
-                  className="inline-flex items-center px-2 py-1 bg-[#4DE0F9] bg-opacity-20 text-[#4DE0F9] text-sm rounded-full border border-[#4DE0F9] border-opacity-30"
+        {selectedTags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mt-3">
+            {selectedTags.map(tag => (
+              <span
+                key={tag}
+                className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-[#4DE0F9] bg-opacity-20 text-[#4DE0F9] border border-[#4DE0F9] border-opacity-30"
+              >
+                {tag}
+                <button
+                  onClick={() => setSelectedTags(selectedTags.filter(t => t !== tag))}
+                  className="ml-1 hover:text-white"
                 >
-                  {tag}
-                  <button
-                    onClick={() => setSelectedTags(selectedTags.filter(t => t !== tag))}
-                    className="ml-1 text-[#4DE0F9] hover:text-white"
-                  >
-                    ×
-                  </button>
-                </motion.span>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </motion.div>
 
-      {/* Workflow Grid */}
+      {/* Workflows Grid */}
       <motion.div 
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.3 }}
-        className="min-h-[400px]"
       >
         {filteredWorkflows.length === 0 ? (
           <motion.div 
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             transition={{ delay: 0.4 }}
-            className="glass-panel text-center py-16"
+            className="glass-panel text-center py-12"
           >
-            <motion.div 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              className="w-24 h-24 mx-auto mb-4 bg-[#4DE0F9] bg-opacity-10 rounded-full flex items-center justify-center"
+            <motion.div
+              animate={{ 
+                rotate: [0, 10, -10, 0],
+                scale: [1, 1.1, 1, 1]
+              }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-[#4DE0F9] to-[#A855F7] flex items-center justify-center"
             >
-              <Settings className="w-12 h-12 text-[#4DE0F9]" />
+              <Settings className="w-8 h-8 text-white" />
             </motion.div>
-            <motion.h3 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.6 }}
-              className="text-lg font-medium text-white mb-2"
+            <h3 className="text-xl font-semibold text-white mb-2">No workflows yet</h3>
+            <p className="text-gray-300 mb-6">Create your first automation workflow to get started</p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleCreateWorkflow}
+              className="glow-button inline-flex items-center px-6 py-3"
             >
-              {workflows.length === 0 ? 'No workflows yet' : 'No workflows match your filters'}
-            </motion.h3>
-            <motion.p 
-              initial={{ y: 20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              transition={{ delay: 0.7 }}
-              className="text-gray-300 mb-6"
-            >
-              {workflows.length === 0 
-                ? 'Get started by creating your first automation workflow'
-                : 'Try adjusting your search or filter criteria'
-              }
-            </motion.p>
-            {workflows.length === 0 && (
-              <motion.button
-                initial={{ y: 20, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.8 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleCreateWorkflow}
-                className="glow-button inline-flex items-center px-4 py-2"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                Create Your First Workflow
-              </motion.button>
-            )}
+              <Plus className="w-5 h-5 mr-2" />
+              Create Your First Workflow
+            </motion.button>
           </motion.div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -332,157 +288,154 @@ const WorkflowCard: React.FC<WorkflowCardProps> = ({
   onDelete,
   onToggleStatus
 }) => {
-  const [showActions, setShowActions] = useState(false);
-
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      year: 'numeric'
     });
   };
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -20 }}
-      transition={{ delay: index * 0.1 }}
-      whileHover={{ y: -5 }}
-      className="glass-panel p-6 cursor-pointer relative overflow-hidden group"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
+      initial={{ opacity: 0, y: 20, scale: 0.9 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -20, scale: 0.9 }}
+      transition={{ 
+        delay: index * 0.1,
+        duration: 0.3,
+        ease: "easeOut"
+      }}
+      whileHover={{ y: -5, scale: 1.02 }}
+      className="glass-panel p-6 cursor-pointer group"
       onClick={() => onEdit(workflow.id)}
     >
-      {/* Animated background gradient */}
-      <motion.div
-        className="absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-300"
-        style={{
-          background: 'linear-gradient(135deg, var(--primary-glow), var(--secondary-glow))'
-        }}
-      />
-
-      {/* Header */}
-      <div className="flex items-start justify-between mb-4 relative z-10">
+      <div className="flex items-start justify-between mb-4">
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-white mb-1">{workflow.name}</h3>
+          <motion.h3 
+            className="text-lg font-semibold text-white mb-1 group-hover:text-[#4DE0F9] transition-colors"
+            whileHover={{ x: 5 }}
+          >
+            {workflow.name}
+          </motion.h3>
           {workflow.description && (
-            <p className="text-gray-300 text-sm line-clamp-2">{workflow.description}</p>
+            <p className="text-gray-300 text-sm line-clamp-2">
+              {workflow.description}
+            </p>
           )}
         </div>
-        <div className="flex items-center space-x-2">
-          <motion.span 
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: index * 0.1 + 0.2 }}
-            className={`px-2 py-1 text-xs rounded-full ${
-              workflow.status === 'active'
-                ? 'bg-green-500 bg-opacity-20 text-green-400 border border-green-500 border-opacity-30'
-                : 'bg-gray-500 bg-opacity-20 text-gray-400 border border-gray-500 border-opacity-30'
-            }`}
-          >
-            {workflow.status}
-          </motion.span>
+        <div className={`px-2 py-1 rounded-full text-xs font-medium ${
+          workflow.status === 'active' 
+            ? 'bg-green-500 bg-opacity-20 text-green-400 border border-green-500 border-opacity-30' 
+            : 'bg-gray-500 bg-opacity-20 text-gray-400 border border-gray-500 border-opacity-30'
+        }`}>
+          {workflow.status}
         </div>
       </div>
 
-      {/* Tags */}
       {workflow.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4 relative z-10">
-          {workflow.tags.slice(0, 3).map((tag, tagIndex) => (
-            <motion.span
+        <div className="flex flex-wrap gap-1 mb-4">
+          {workflow.tags.slice(0, 3).map(tag => (
+            <span
               key={tag}
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ delay: index * 0.1 + tagIndex * 0.05 + 0.3 }}
-              className="inline-flex items-center px-2 py-1 bg-[#4DE0F9] bg-opacity-10 text-[#4DE0F9] text-xs rounded-full border border-[#4DE0F9] border-opacity-20"
+              className="inline-flex items-center px-2 py-1 rounded text-xs bg-[#A855F7] bg-opacity-20 text-[#A855F7] border border-[#A855F7] border-opacity-30"
             >
               <Tag className="w-3 h-3 mr-1" />
               {tag}
-            </motion.span>
+            </span>
           ))}
           {workflow.tags.length > 3 && (
-            <span className="text-xs text-gray-400">+{workflow.tags.length - 3} more</span>
+            <span className="text-xs text-gray-400">
+              +{workflow.tags.length - 3} more
+            </span>
           )}
         </div>
       )}
 
-      {/* Footer */}
-      <div className="flex items-center justify-between text-sm text-gray-400 relative z-10">
+      <div className="flex items-center justify-between text-xs text-gray-400 mb-4">
         <div className="flex items-center">
           <Calendar className="w-4 h-4 mr-1" />
-          {formatDate(workflow.updated_at)}
+          {formatDate(workflow.created_at)}
         </div>
+        {workflow.updated_at !== workflow.created_at && (
+          <div>
+            Updated {formatDate(workflow.updated_at)}
+          </div>
+        )}
       </div>
 
-      {/* Action Buttons */}
-      <AnimatePresence>
-        {showActions && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="absolute top-4 right-4 flex items-center space-x-1 glass-panel p-1 z-20"
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onEdit(workflow.id);
+            }}
+            className="p-2 text-gray-400 hover:text-[#4DE0F9] hover:bg-[#4DE0F9] hover:bg-opacity-10 rounded-lg transition-colors"
+            title="Edit workflow"
           >
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleStatus(workflow.id, workflow.status);
-              }}
-              className="p-2 text-gray-300 hover:text-[#4DE0F9] rounded transition-colors"
-              title={workflow.status === 'active' ? 'Deactivate' : 'Activate'}
-            >
-              {workflow.status === 'active' ? (
-                <Pause className="w-4 h-4" />
-              ) : (
-                <Play className="w-4 h-4" />
-              )}
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(workflow.id);
-              }}
-              className="p-2 text-gray-300 hover:text-[#4DE0F9] rounded transition-colors"
-              title="Edit"
-            >
-              <Edit3 className="w-4 h-4" />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDuplicate(workflow.id);
-              }}
-              className="p-2 text-gray-300 hover:text-[#4DE0F9] rounded transition-colors"
-              title="Duplicate"
-            >
-              <Copy className="w-4 h-4" />
-            </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(workflow.id);
-              }}
-              className="p-2 text-gray-300 hover:text-red-400 rounded transition-colors"
-              title="Delete"
-            >
-              <Trash2 className="w-4 h-4" />
-            </motion.button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            <Edit3 className="w-4 h-4" />
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDuplicate(workflow.id);
+            }}
+            className="p-2 text-gray-400 hover:text-[#A855F7] hover:bg-[#A855F7] hover:bg-opacity-10 rounded-lg transition-colors"
+            title="Duplicate workflow"
+          >
+            <Copy className="w-4 h-4" />
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggleStatus(workflow.id, workflow.status);
+            }}
+            className={`p-2 rounded-lg transition-colors ${
+              workflow.status === 'active'
+                ? 'text-orange-400 hover:text-orange-300 hover:bg-orange-500 hover:bg-opacity-10'
+                : 'text-green-400 hover:text-green-300 hover:bg-green-500 hover:bg-opacity-10'
+            }`}
+            title={workflow.status === 'active' ? 'Pause workflow' : 'Activate workflow'}
+          >
+            {workflow.status === 'active' ? (
+              <Pause className="w-4 h-4" />
+            ) : (
+              <Play className="w-4 h-4" />
+            )}
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(workflow.id);
+            }}
+            className="p-2 text-gray-400 hover:text-red-400 hover:bg-red-500 hover:bg-opacity-10 rounded-lg transition-colors"
+            title="Delete workflow"
+          >
+            <Trash2 className="w-4 h-4" />
+          </motion.button>
+        </div>
+        
+        <motion.div
+          className="opacity-0 group-hover:opacity-100 transition-opacity"
+          whileHover={{ x: 5 }}
+        >
+          <span className="text-xs text-[#4DE0F9]">Open →</span>
+        </motion.div>
+      </div>
     </motion.div>
   );
 };
 
-export default WorkflowListPage; 
+export default AutomationBuilderListPage; 

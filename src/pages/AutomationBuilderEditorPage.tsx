@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Save, Settings, Play, Pause } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import WorkflowBuilder from '../components/workflow/WorkflowBuilder';
 import { workflowService, workflowDataService, type Workflow } from '../services/workflowService';
+import SimpleWorkflowEditor from '../components/SimpleWorkflowEditor';
 
-const WorkflowBuilderPage: React.FC = () => {
+const AutomationBuilderEditorPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [workflow, setWorkflow] = useState<Workflow | null>(null);
@@ -51,7 +51,7 @@ const WorkflowBuilderPage: React.FC = () => {
       ]);
 
       if (!workflowResponse) {
-        navigate('/workflow');
+        navigate('/automation-builder');
         return;
       }
 
@@ -62,13 +62,13 @@ const WorkflowBuilderPage: React.FC = () => {
       setWorkflowData(dataResponse?.board_data || {});
     } catch (error) {
       console.error('Error loading workflow:', error);
-      navigate('/workflow');
+      navigate('/automation-builder');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSave = async (boardData?: any) => {
+  const handleSave = async (workflowKitData?: any) => {
     if (!workflow) return;
 
     try {
@@ -80,11 +80,11 @@ const WorkflowBuilderPage: React.FC = () => {
           name: workflowName,
           description: workflowDescription,
           tags: workflowTags,
-          board_data: boardData || workflowData
+          board_data: workflowKitData || workflowData
         });
         
         // Navigate to the new workflow
-        navigate(`/workflow/${newWorkflow.id}`, { replace: true });
+        navigate(`/automation-builder/${newWorkflow.id}`, { replace: true });
       } else {
         // Update existing workflow
         await Promise.all([
@@ -93,7 +93,7 @@ const WorkflowBuilderPage: React.FC = () => {
             description: workflowDescription,
             tags: workflowTags
           }),
-          boardData ? workflowDataService.saveWorkflowData(workflow.id, boardData) : Promise.resolve()
+          workflowKitData ? workflowDataService.saveWorkflowData(workflow.id, workflowKitData) : Promise.resolve()
         ]);
         
         // Reload workflow to get updated data
@@ -119,7 +119,7 @@ const WorkflowBuilderPage: React.FC = () => {
     }
   };
 
-  const handleWorkflowDataChange = (newData: any) => {
+  const handleWorkflowChange = (newData: any) => {
     setWorkflowData(newData);
     // Auto-save after 2 seconds of inactivity
     clearTimeout((window as any).workflowSaveTimeout);
@@ -130,28 +130,152 @@ const WorkflowBuilderPage: React.FC = () => {
     }, 2000);
   };
 
+  // Define available actions for the workflow
+  const availableActions = [
+    // Triggers
+    {
+      kind: 'event-trigger',
+      name: 'Event Trigger',
+      description: 'Triggered by custom events from your application',
+      category: 'triggers',
+      icon: '⚡'
+    },
+    {
+      kind: 'cron-trigger',
+      name: 'Cron Schedule',
+      description: 'Run on a schedule using cron syntax',
+      category: 'triggers',
+      icon: '⏰'
+    },
+    {
+      kind: 'webhook-trigger',
+      name: 'Webhook Trigger',
+      description: 'Triggered by incoming webhook events',
+      category: 'triggers',
+      icon: '🌐'
+    },
+    
+    // Core Steps
+    {
+      kind: 'step-run',
+      name: 'Run Code',
+      description: 'Execute custom TypeScript/JavaScript code',
+      category: 'core',
+      icon: '🧠'
+    },
+    {
+      kind: 'step-sleep',
+      name: 'Sleep',
+      description: 'Pause execution for a specified duration',
+      category: 'core',
+      icon: '💤'
+    },
+    {
+      kind: 'step-sleep-until',
+      name: 'Sleep Until',
+      description: 'Pause execution until a specific date/time',
+      category: 'core',
+      icon: '⏰'
+    },
+    {
+      kind: 'step-wait-for-event',
+      name: 'Wait for Event',
+      description: 'Pause until a specific event is received',
+      category: 'core',
+      icon: '⏳'
+    },
+    {
+      kind: 'step-invoke',
+      name: 'Invoke Function',
+      description: 'Call another Inngest function and wait for result',
+      category: 'core',
+      icon: '🔗'
+    },
+    {
+      kind: 'step-send-event',
+      name: 'Send Event',
+      description: 'Send events to trigger other functions',
+      category: 'core',
+      icon: '📤'
+    },
+    
+    // Flow Control
+    {
+      kind: 'parallel-steps',
+      name: 'Parallel Steps',
+      description: 'Run multiple steps in parallel',
+      category: 'flow',
+      icon: '⚡'
+    },
+    {
+      kind: 'conditional-step',
+      name: 'Conditional Logic',
+      description: 'Execute steps based on conditions',
+      category: 'flow',
+      icon: '🔀'
+    },
+    {
+      kind: 'loop-step',
+      name: 'Loop',
+      description: 'Iterate over data or repeat steps',
+      category: 'flow',
+      icon: '🔄'
+    },
+    
+    // Integrations
+    {
+      kind: 'generate-video',
+      name: 'Generate Video',
+      description: 'Generate AI videos using HeyGen',
+      category: 'integrations',
+      icon: '🎬'
+    },
+    {
+      kind: 'send-webhook',
+      name: 'Send Webhook',
+      description: 'Send HTTP webhook to external service',
+      category: 'integrations',
+      icon: '🌐'
+    },
+    {
+      kind: 'send-email',
+      name: 'Send Email',
+      description: 'Send emails via email service providers',
+      category: 'integrations',
+      icon: '📧'
+    },
+    {
+      kind: 'database-query',
+      name: 'Database Query',
+      description: 'Query or update database records',
+      category: 'integrations',
+      icon: '🗄️'
+    },
+    {
+      kind: 'ai-inference',
+      name: 'AI Inference',
+      description: 'Call AI/ML models for processing',
+      category: 'integrations',
+      icon: '🤖'
+    },
+    {
+      kind: 'file-processing',
+      name: 'File Processing',
+      description: 'Process files, images, or documents',
+      category: 'integrations',
+      icon: '📁'
+    }
+  ];
+
   if (isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen">
         <div className="relative">
-          {/* Pulsing circles */}
           <motion.div
             animate={{ scale: [1, 1.2, 1], opacity: [0.7, 0.3, 0.7] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
             className="w-20 h-20 rounded-full bg-[#4DE0F9] bg-opacity-20 absolute"
           />
-          <motion.div
-            animate={{ scale: [1.2, 1.4, 1.2], opacity: [0.5, 0.2, 0.5] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-            className="w-20 h-20 rounded-full bg-[#A855F7] bg-opacity-20 absolute"
-          />
-          <motion.div
-            animate={{ scale: [1.4, 1.6, 1.4], opacity: [0.3, 0.1, 0.3] }}
-            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.6 }}
-            className="w-20 h-20 rounded-full bg-[#4DE0F9] bg-opacity-10 absolute"
-          />
-          
-          {/* Central glowing dot */}
           <motion.div
             animate={{ 
               boxShadow: [
@@ -176,33 +300,15 @@ const WorkflowBuilderPage: React.FC = () => {
         className="flex-1 flex items-center justify-center min-h-screen"
       >
         <div className="glass-panel text-center p-8">
-          <motion.h2 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.1 }}
-            className="text-2xl font-bold text-white mb-2"
+          <h2 className="text-2xl font-bold text-white mb-2">Workflow not found</h2>
+          <p className="text-gray-300 mb-4">The workflow you're looking for doesn't exist.</p>
+          <button
+            onClick={() => navigate('/automation-builder')}
+            className="glow-button inline-flex items-center px-4 py-2"
           >
-            Workflow not found
-          </motion.h2>
-          <motion.p 
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.2 }}
-            className="text-gray-300 mb-4"
-          >
-            The workflow you're looking for doesn't exist.
-          </motion.p>
-          <motion.button
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            transition={{ delay: 0.3 }}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => navigate('/workflow')}
-            className="glow-button px-4 py-2"
-          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
             Back to Workflows
-          </motion.button>
+          </button>
         </div>
       </motion.div>
     );
@@ -212,30 +318,19 @@ const WorkflowBuilderPage: React.FC = () => {
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex-1 flex flex-col bg-transparent p-6 space-y-6"
+      className="flex-1 flex flex-col bg-transparent h-screen"
     >
       {/* Header */}
-      <motion.div 
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="glass-panel px-6 py-4"
-      >
+      <div className="glass-panel px-6 py-4 m-6 mb-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => navigate('/workflow')}
+            <button
+              onClick={() => navigate('/automation-builder')}
               className="p-2 text-gray-300 hover:text-[#4DE0F9] hover:bg-[#4DE0F9] hover:bg-opacity-10 rounded-lg transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
-            </motion.button>
-            <motion.div
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
+            </button>
+            <div>
               <h1 className="text-xl font-bold text-white">{workflowName}</h1>
               <div className="flex items-center space-x-4 text-sm text-gray-300">
                 <span>
@@ -245,82 +340,38 @@ const WorkflowBuilderPage: React.FC = () => {
                     {workflow.status}
                   </span>
                 </span>
-                {workflow.updated_at && (
-                  <span>
-                    Last saved: {new Date(workflow.updated_at).toLocaleString()}
-                  </span>
-                )}
               </div>
-            </motion.div>
+            </div>
           </div>
 
           <div className="flex items-center space-x-3">
-            {!isNewWorkflow && (
-              <motion.button
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={handleToggleStatus}
-                className={`inline-flex items-center px-3 py-2 text-sm rounded-lg border transition-all ${
-                  workflow.status === 'active'
-                    ? 'border-orange-500 border-opacity-30 text-orange-400 bg-orange-500 bg-opacity-10 hover:bg-opacity-20'
-                    : 'border-green-500 border-opacity-30 text-green-400 bg-green-500 bg-opacity-10 hover:bg-opacity-20'
-                }`}
-              >
-                {workflow.status === 'active' ? (
-                  <>
-                    <Pause className="w-4 h-4 mr-2" />
-                    Deactivate
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-4 h-4 mr-2" />
-                    Activate
-                  </>
-                )}
-              </motion.button>
-            )}
-
-            <motion.button
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
+            <button
               onClick={() => setShowSettings(true)}
               className="p-2 text-gray-300 hover:text-[#4DE0F9] hover:bg-[#4DE0F9] hover:bg-opacity-10 rounded-lg transition-colors"
             >
               <Settings className="w-5 h-5" />
-            </motion.button>
+            </button>
 
-            <motion.button
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.5 }}
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+            <button
               onClick={() => handleSave()}
               disabled={isSaving}
               className="glow-button inline-flex items-center px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Save className="w-4 h-4 mr-2" />
               {isSaving ? 'Saving...' : 'Save'}
-            </motion.button>
+            </button>
           </div>
         </div>
-      </motion.div>
+      </div>
 
-      {/* Workflow Builder */}
-      <motion.div 
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="flex-1 glass-panel p-4"
-      >
-        <WorkflowBuilder />
-      </motion.div>
+      {/* Workflow Editor */}
+      <div className="flex-1 mx-6 mb-6 bg-transparent border border-white/20 rounded-xl overflow-hidden backdrop-blur-xl">
+        <SimpleWorkflowEditor
+          workflow={workflowData}
+          availableActions={availableActions}
+          onChange={handleWorkflowChange}
+        />
+      </div>
 
       {/* Settings Modal */}
       <AnimatePresence>
@@ -368,40 +419,36 @@ const WorkflowBuilderPage: React.FC = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-300 mb-2">
-                    Tags (comma-separated)
+                    Tags
                   </label>
                   <input
                     type="text"
                     value={workflowTags.join(', ')}
                     onChange={(e) => setWorkflowTags(
-                      e.target.value.split(',').map(tag => tag.trim()).filter(Boolean)
+                      e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag)
                     )}
                     className="form-input w-full px-3 py-2"
-                    placeholder="automation, email, crm"
+                    placeholder="Enter tags separated by commas"
                   />
                 </div>
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                <button
                   onClick={() => setShowSettings(false)}
-                  className="px-4 py-2 text-gray-300 border border-gray-500 border-opacity-30 rounded-lg hover:bg-gray-500 hover:bg-opacity-10 transition-colors"
+                  className="px-4 py-2 text-gray-300 hover:text-white transition-colors"
                 >
                   Cancel
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                </button>
+                <button
                   onClick={() => {
                     setShowSettings(false);
                     handleSave();
                   }}
                   className="glow-button px-4 py-2"
                 >
-                  Save Settings
-                </motion.button>
+                  Save Changes
+                </button>
               </div>
             </motion.div>
           </motion.div>
@@ -411,4 +458,4 @@ const WorkflowBuilderPage: React.FC = () => {
   );
 };
 
-export default WorkflowBuilderPage; 
+export default AutomationBuilderEditorPage; 
