@@ -24,9 +24,10 @@ import ResetPasswordPage from './pages/ResetPasswordPage';
 import InfluencersPage from './pages/InfluencersPage';
 import VideosPage from './pages/VideosPage';
 import AutomationBuilderListPage from './pages/automation-builder/index';
-import AutomationBuilderEditorPage from './pages/AutomationBuilderEditorPage';
+import AutomationBuilderEditorPage from './pages/automation-builder/editor';
 import PodcastStudioPage from './pages/PodcastStudioPage';
 import ApiDocsPage from './pages/ApiDocsPage';
+import { Toaster } from 'react-hot-toast';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.currentUser);
@@ -246,6 +247,16 @@ function App() {
         />
       </Routes>
       {user && <Chatbot />}
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          style: {
+            background: '#1f2937',
+            color: '#f9fafb',
+            border: '1px solid #374151',
+          },
+        }}
+      />
     </BrowserRouter>
   );
 }

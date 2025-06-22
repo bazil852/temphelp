@@ -1,4 +1,6 @@
 import { supabase } from '../lib/supabase';
+import { saveWorkflow as saveWorkflowNew, SaveWorkflowDto } from '../lib/workflows/saveWorkflow';
+import { BoardJson } from '../lib/workflows/types';
 
 export interface Workflow {
   id: string;
@@ -7,6 +9,9 @@ export interface Workflow {
   description?: string;
   tags: string[];
   status: 'active' | 'inactive';
+  board_data?: any; // React-Flow board data
+  exec_definition?: any; // Optimized execution definition
+  version?: number; // Auto-incrementing version
   created_at: string;
   updated_at: string;
 }
@@ -118,6 +123,9 @@ export const workflowService = {
       throw new Error(`Failed to update workflow: ${error.message}`);
     }
 
+    // Note: Trigger management is now handled via RPC functions in the editor
+    // See activateWorkflow() and deactivateWorkflow() in triggerService.ts
+
     return data;
   },
 
@@ -136,9 +144,8 @@ export const workflowService = {
 
   // Duplicate a workflow
   async duplicateWorkflow(id: string): Promise<Workflow> {
-    // Get original workflow and its data
+    // Get original workflow
     const originalWorkflow = await this.getWorkflow(id);
-    const originalData = await workflowDataService.getWorkflowData(id);
 
     if (!originalWorkflow) {
       throw new Error('Workflow not found');
@@ -149,7 +156,7 @@ export const workflowService = {
       name: `${originalWorkflow.name} (Copy)`,
       description: originalWorkflow.description,
       tags: originalWorkflow.tags,
-      board_data: originalData?.board_data
+      board_data: originalWorkflow.board_data
     });
 
     return newWorkflow;
@@ -158,6 +165,11 @@ export const workflowService = {
   // Save workflow board data (moved here for proper access)
   async saveWorkflowData(workflowId: string, boardData: any): Promise<WorkflowData> {
     return workflowDataService.saveWorkflowData(workflowId, boardData);
+  },
+
+  // New optimized save function that saves both board_data and exec_definition
+  async saveWorkflowOptimized(board: BoardJson, dto: SaveWorkflowDto): Promise<string> {
+    return saveWorkflowNew(board, dto);
   }
 };
 
@@ -230,3 +242,7 @@ export default {
   ...workflowService,
   ...workflowDataService
 }; 
+
+// Export the new types and function for direct use
+export { saveWorkflowNew as saveWorkflow };
+export type { SaveWorkflowDto, BoardJson }; 

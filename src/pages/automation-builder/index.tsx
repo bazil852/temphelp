@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, Settings, Play, Pause, Copy, Trash2, Edit3, Calendar, Tag } from 'lucide-react';
+import { Plus, Search, Filter, Settings, Play, Pause, Copy, Trash2, Edit3, Calendar, Tag, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { workflowService, type Workflow } from '../../services/workflowService';
+import { runWorkflow, hasManualTrigger } from '../../services/triggerService';
+import toast from 'react-hot-toast';
 
 const AutomationBuilderListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -77,6 +79,45 @@ const AutomationBuilderListPage: React.FC = () => {
       loadWorkflows();
     } catch (error) {
       console.error('Error updating workflow status:', error);
+    }
+  };
+
+  const handleRunWorkflow = async (workflowId: string) => {
+    try {
+      // Get workflow to check if it has manual trigger
+      const workflow = workflows.find(w => w.id === workflowId);
+      if (!workflow) {
+        toast.error('Workflow not found');
+        return;
+      }
+
+      // Load workflow data to check for manual triggers
+      const workflowData = await workflowService.getWorkflow(workflowId);
+      if (!workflowData || !workflowData.board_data) {
+        toast.error('Could not load workflow data');
+        return;
+      }
+      
+      const hasManual = hasManualTrigger(workflowData.board_data);
+      
+      if (!hasManual) {
+        toast.error('This workflow does not have a manual trigger');
+        return;
+      }
+
+      // Run with default payload
+      const payload = { 
+        test: true, 
+        timestamp: new Date().toISOString(),
+        source: 'workflow-list'
+      };
+      
+      await runWorkflow(workflowId, payload);
+      toast.success('✅ Workflow execution started successfully!');
+      
+    } catch (error) {
+      console.error('Error running workflow:', error);
+      toast.error(`❌ Error running workflow: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -261,6 +302,7 @@ const AutomationBuilderListPage: React.FC = () => {
                   onDuplicate={handleDuplicateWorkflow}
                   onDelete={handleDeleteWorkflow}
                   onToggleStatus={handleToggleStatus}
+                  onRun={handleRunWorkflow}
                 />
               ))}
             </AnimatePresence>
@@ -278,6 +320,7 @@ interface WorkflowCardProps {
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
   onToggleStatus: (id: string, currentStatus: string) => void;
+  onRun: (id: string) => void;
 }
 
 const WorkflowCard: React.FC<WorkflowCardProps> = ({
@@ -286,7 +329,8 @@ const WorkflowCard: React.FC<WorkflowCardProps> = ({
   onEdit,
   onDuplicate,
   onDelete,
-  onToggleStatus
+  onToggleStatus,
+  onRun
 }) => {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -390,6 +434,19 @@ const WorkflowCard: React.FC<WorkflowCardProps> = ({
             title="Duplicate workflow"
           >
             <Copy className="w-4 h-4" />
+          </motion.button>
+          
+          <motion.button
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onRun(workflow.id);
+            }}
+            className="p-2 text-gray-400 hover:text-yellow-400 hover:bg-yellow-500 hover:bg-opacity-10 rounded-lg transition-colors"
+            title="Run workflow now"
+          >
+            <Zap className="w-4 h-4" />
           </motion.button>
           
           <motion.button
