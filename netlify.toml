@@ -7,14 +7,6 @@
   to = "/index.html"
   status = 200
 
-[[redirects]]
-  from = "/api/webhooks/*"
-  to = "/.netlify/functions/webhook"
-  status = 200
-  force = true
-  methods = ["POST", "OPTIONS"]
-  headers = {Access-Control-Allow-Origin = "*"}
-
 [build.environment]
   VITE_SUPABASE_URL = "https://uiucmdovylwgfileuhpg.supabase.co"
   VITE_SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InVpdWNtZG92eWx3Z2ZpbGV1aHBnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzE2NDYxMTEsImV4cCI6MjA0NzIyMjExMX0.Hx57N55YK5Pp5tKkvDStcGFWKzAtzmJNlIqlqaGN9FA"
