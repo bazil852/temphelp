@@ -1,4 +1,4 @@
-import { executeManualTrigger } from '../../src/services/triggerService';
+import { runWorkflow } from '../../src/services/triggerService';
 
 export const handler = async (event: any, context: any) => {
   console.log('▶️ Manual trigger execution requested:', {
@@ -56,9 +56,9 @@ export const handler = async (event: any, context: any) => {
       }
     }
 
-    const { workflowId, triggerId, payload } = requestBody;
+    const { workflowId, payload } = requestBody;
 
-    if (!workflowId || !triggerId) {
+    if (!workflowId) {
       return {
         statusCode: 400,
         headers: {
@@ -68,44 +68,27 @@ export const handler = async (event: any, context: any) => {
         body: JSON.stringify({
           success: false,
           error: 'Missing required fields',
-          message: 'workflowId and triggerId are required'
+          message: 'workflowId is required'
         })
       };
     }
 
-    // Execute the manual trigger
-    const result = await executeManualTrigger(workflowId, triggerId, payload);
+    // Execute the manual trigger using runWorkflow
+    await runWorkflow(workflowId, payload || {});
 
-    if (result.success) {
-      return {
-        statusCode: 200,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({
-          success: true,
-          message: result.message,
-          timestamp: new Date().toISOString(),
-          workflowId,
-          triggerId
-        })
-      };
-    } else {
-      return {
-        statusCode: 404,
-        headers: {
-          'Content-Type': 'application/json',
-          'Access-Control-Allow-Origin': '*'
-        },
-        body: JSON.stringify({
-          success: false,
-          error: result.message,
-          workflowId,
-          triggerId
-        })
-      };
-    }
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*'
+      },
+      body: JSON.stringify({
+        success: true,
+        message: 'Workflow triggered successfully',
+        timestamp: new Date().toISOString(),
+        workflowId
+      })
+    };
 
   } catch (error) {
     console.error('❌ Manual trigger execution error:', error);
