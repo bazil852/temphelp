@@ -171,7 +171,7 @@ const AutomationBuilderListPage: React.FC = () => {
             transition={{ delay: 0.2 }}
           >
             <h1 className="text-2xl font-bold text-white mb-2">Automation Builder</h1>
-            <p className="text-gray-300">Create and manage your Inngest-powered workflows</p>
+                            <p className="text-gray-300">Create and manage your automated workflows</p>
           </motion.div>
           <motion.button
             initial={{ x: 20, opacity: 0 }}
