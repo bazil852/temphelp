@@ -22,6 +22,8 @@ export interface HttpConfig {
   url: string;          // templated: "https://api/foo?x={{ctx.id}}"
   headers?: Record<string, string>;
   body?: any;             // JSON or raw string
+  bodyParams?: Record<string, any>;
+  bodyType?: string;
   timeoutMs?: number;        // default: 15000
   saveAs?: string;          // ctx key, default: "httpResponse"
 }
@@ -130,6 +132,8 @@ export const getDefaultNodeConfig = (kind: string): any => {
         url: '',
         headers: {},
         body: null,
+        bodyParams: {},
+        bodyType: 'json',
         timeoutMs: 15000,
         saveAs: 'httpResponse'
       } as HttpConfig;

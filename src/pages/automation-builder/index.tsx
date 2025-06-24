@@ -133,18 +133,18 @@ const AutomationBuilderListPage: React.FC = () => {
           <motion.div
             animate={{ scale: [1.2, 1.4, 1.2], opacity: [0.5, 0.2, 0.5] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-            className="w-20 h-20 rounded-full bg-[#A855F7] bg-opacity-20 absolute"
+            className="w-20 h-20 rounded-full bg-[#4DE0F9] bg-opacity-20 absolute"
           />
           <motion.div
             animate={{ 
               boxShadow: [
                 "0 0 10px rgba(77, 224, 249, 0.5)",
-                "0 0 30px rgba(168, 85, 247, 0.7)",
+                "0 0 30px rgba(77, 224, 249, 0.7)",
                 "0 0 10px rgba(77, 224, 249, 0.5)"
               ]
             }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-            className="w-3 h-3 rounded-full bg-gradient-to-r from-[#4DE0F9] to-[#A855F7] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+            className="w-3 h-3 rounded-full bg-[#4DE0F9] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
           />
         </div>
       </div>
@@ -274,7 +274,7 @@ const AutomationBuilderListPage: React.FC = () => {
                 scale: [1, 1.1, 1, 1]
               }}
               transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-[#4DE0F9] to-[#A855F7] flex items-center justify-center"
+              className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#4DE0F9] bg-opacity-20 flex items-center justify-center"
             >
               <Settings className="w-8 h-8 text-white" />
             </motion.div>
@@ -382,7 +382,7 @@ const WorkflowCard: React.FC<WorkflowCardProps> = ({
           {workflow.tags.slice(0, 3).map(tag => (
             <span
               key={tag}
-              className="inline-flex items-center px-2 py-1 rounded text-xs bg-[#A855F7] bg-opacity-20 text-[#A855F7] border border-[#A855F7] border-opacity-30"
+              className="inline-flex items-center px-2 py-1 rounded text-xs bg-[#4DE0F9] bg-opacity-20 text-[#4DE0F9] border border-[#4DE0F9] border-opacity-30"
             >
               <Tag className="w-3 h-3 mr-1" />
               {tag}
@@ -430,7 +430,7 @@ const WorkflowCard: React.FC<WorkflowCardProps> = ({
               e.stopPropagation();
               onDuplicate(workflow.id);
             }}
-            className="p-2 text-gray-400 hover:text-[#A855F7] hover:bg-[#A855F7] hover:bg-opacity-10 rounded-lg transition-colors"
+            className="p-2 text-gray-400 hover:text-[#4DE0F9] hover:bg-[#4DE0F9] hover:bg-opacity-10 rounded-lg transition-colors"
             title="Duplicate workflow"
           >
             <Copy className="w-4 h-4" />

@@ -7,6 +7,7 @@ import { buildNodeOutputsFromWorkflow } from '../../services/templateEngine';
 import { activateWorkflow, deactivateWorkflow, runWorkflow, hasManualTrigger, getWebhookTriggerNode } from '../../services/triggerService';
 import SimpleWorkflowEditor from '../../components/SimpleWorkflowEditor';
 import RunNowModal from '../../components/RunNowModal';
+import NodeConfigModal from '../../components/NodeConfigModal';
 import toast from 'react-hot-toast';
 
 // Move availableActions outside component to prevent re-creation on every render
@@ -169,6 +170,10 @@ const AutomationBuilderEditorPage: React.FC = () => {
   const [workflowName, setWorkflowName] = useState('');
   const [workflowDescription, setWorkflowDescription] = useState('');
   const [workflowTags, setWorkflowTags] = useState<string[]>([]);
+
+  // Modal state
+  const [selectedNode, setSelectedNode] = React.useState<any>(null);
+  const [isConfigModalOpen, setIsConfigModalOpen] = React.useState(false);
 
   const isNewWorkflow = id === 'new';
 
@@ -412,30 +417,82 @@ const AutomationBuilderEditorPage: React.FC = () => {
     if (!workflow) return;
     
     try {
-      let payload = {};
-      if (runNowPayload.trim()) {
-        try {
-          payload = JSON.parse(runNowPayload);
-        } catch (error) {
-          toast.error('Invalid JSON payload. Please check your input.');
-          return;
+      await runWorkflow(workflow.id, JSON.parse(runNowPayload));
+      console.log('✅ Manual trigger response');
+      setShowRunNowModal(false);
+    } catch (error) {
+      console.error('❌ Error triggering workflow:', error);
+      alert('Failed to trigger workflow. Please check your payload format.');
+    }
+  };
+
+  const handleNodeClick = (node: any) => {
+    console.log('🎯 Node clicked in parent:', node.id, node.data.actionKind);
+    setSelectedNode(node);
+    setIsConfigModalOpen(true);
+  };
+
+  const handleNodeConfigSave = (nodeId: string, config: any) => {
+    console.log('💾 Saving node config from parent for:', nodeId, 'Config:', config);
+    
+    // Find the node to check if it's a switch node
+    const targetNode = workflowData.nodes?.find((node: any) => node.id === nodeId);
+    const isSwitch = targetNode?.data?.actionKind === 'switch';
+    
+    // Update the workflow data with the new node config
+    let updatedWorkflowData = {
+      ...workflowData,
+      nodes: workflowData.nodes.map((node: any) => 
+        node.id === nodeId 
+          ? { ...node, data: { ...node.data, config } }
+          : node
+      )
+    };
+    
+    // For switch nodes, automatically create/update connections based on config
+    if (isSwitch && config.cases) {
+      // Remove existing connections from this switch node
+      const existingConnections = updatedWorkflowData.connections || [];
+      const filteredConnections = existingConnections.filter((conn: any) => conn.source !== nodeId);
+      
+      // Create new connections for each case and default
+      const newConnections = [...filteredConnections];
+      
+      // Add connections for each case
+      config.cases.forEach((caseItem: any, index: number) => {
+        if (caseItem.next) {
+          const connectionId = `${nodeId}-${caseItem.next}-case-${index}`;
+          newConnections.push({
+            id: connectionId,
+            source: nodeId,
+            target: caseItem.next,
+            sourceHandle: `case-${index}`,
+            targetHandle: 'input'
+          });
         }
+      });
+      
+      // Add connection for default path
+      if (config.defaultNext) {
+        const defaultConnectionId = `${nodeId}-${config.defaultNext}-default`;
+        newConnections.push({
+          id: defaultConnectionId,
+          source: nodeId,
+          target: config.defaultNext,
+          sourceHandle: 'default',
+          targetHandle: 'input'
+        });
       }
       
-      console.log('🧪 Running manual workflow with new trigger service:', { workflowId: workflow.id, payload });
-      
-      // Use the new trigger service
-      await runWorkflow(workflow.id, payload);
-      
-      toast.success('✅ Manual workflow execution started successfully!');
-      console.log('✅ Manual trigger executed successfully');
-      
-      setShowRunNowModal(false);
-      
-    } catch (error) {
-      console.error('❌ Error running manual trigger:', error);
-      toast.error(`❌ Error running manual trigger: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      updatedWorkflowData.connections = newConnections;
+      console.log('🔀 Updated switch connections:', newConnections.filter(c => c.source === nodeId));
     }
+    
+    console.log('💾 Updated node in parent:', updatedWorkflowData.nodes.find((n: any) => n.id === nodeId));
+    setWorkflowData(updatedWorkflowData);
+    
+    // Auto-save the changes
+    handleSave(updatedWorkflowData);
   };
 
   const handleWorkflowChange = useCallback((newData: any) => {
@@ -518,18 +575,18 @@ const AutomationBuilderEditorPage: React.FC = () => {
           <motion.div
             animate={{ scale: [1.2, 1.4, 1.2], opacity: [0.5, 0.2, 0.5] }}
             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.3 }}
-            className="w-20 h-20 rounded-full bg-[#A855F7] bg-opacity-20 absolute"
+            className="w-20 h-20 rounded-full bg-[#4DE0F9] bg-opacity-20 absolute"
           />
           <motion.div
             animate={{ 
               boxShadow: [
                 "0 0 10px rgba(77, 224, 249, 0.5)",
-                "0 0 30px rgba(168, 85, 247, 0.7)",
+                "0 0 30px rgba(77, 224, 249, 0.7)",
                 "0 0 10px rgba(77, 224, 249, 0.5)"
               ]
             }}
             transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-            className="w-3 h-3 rounded-full bg-gradient-to-r from-[#4DE0F9] to-[#A855F7] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
+            className="w-3 h-3 rounded-full bg-[#4DE0F9] absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"
           />
         </div>
       </div>
@@ -762,6 +819,7 @@ const AutomationBuilderEditorPage: React.FC = () => {
           onChange={handleWorkflowChange}
           triggerData={triggerData}
           nodeOutputs={nodeOutputs}
+          onNodeClick={handleNodeClick}
         />
       </motion.div>
 
@@ -863,6 +921,31 @@ const AutomationBuilderEditorPage: React.FC = () => {
         onClose={() => setShowRunNowModal(false)}
         workflowId={workflow?.id || ''}
         workflowName={workflow?.name}
+      />
+
+      {/* Node Configuration Modal */}
+      <NodeConfigModal
+        isOpen={isConfigModalOpen}
+        onClose={() => setIsConfigModalOpen(false)}
+        node={selectedNode}
+        onSave={handleNodeConfigSave}
+        onDelete={(nodeId: string) => {
+          // Remove node from workflow data
+          const updatedWorkflowData = {
+            ...workflowData,
+            nodes: workflowData.nodes.filter((node: any) => node.id !== nodeId),
+            connections: workflowData.connections.filter((conn: any) => 
+              conn.source !== nodeId && conn.target !== nodeId
+            )
+          };
+          setWorkflowData(updatedWorkflowData);
+          handleSave(updatedWorkflowData);
+          setIsConfigModalOpen(false);
+        }}
+        workflowId={workflow?.id}
+        triggerData={triggerData}
+        nodeOutputs={nodeOutputs}
+        availableNodes={workflowData?.nodes?.filter((node: any) => node.id !== 'start') || []}
       />
     </motion.div>
   );

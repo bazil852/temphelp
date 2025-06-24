@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Play, Pause, Volume2, VolumeX } from 'lucide-react';
+import { X, Play, Pause, Volume2, VolumeX, Maximize } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface VideoPlayerModalProps {
@@ -28,6 +28,16 @@ export default function VideoPlayerModal({ videoUrl, title, onClose }: VideoPlay
     if (videoRef.current) {
       videoRef.current.muted = !isMuted;
       setIsMuted(!isMuted);
+    }
+  };
+
+  const toggleFullscreen = () => {
+    if (videoRef.current) {
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else {
+        videoRef.current.requestFullscreen();
+      }
     }
   };
 
@@ -65,6 +75,14 @@ export default function VideoPlayerModal({ videoUrl, title, onClose }: VideoPlay
             ) : (
               <Volume2 className="w-6 h-6 text-white" />
             )}
+          </button>
+
+          {/* Fullscreen button */}
+          <button
+            onClick={toggleFullscreen}
+            className="absolute top-4 right-28 z-10 p-2 rounded-full bg-black/50 hover:bg-black/70 transition-colors"
+          >
+            <Maximize className="w-6 h-6 text-white" />
           </button>
 
           {/* Video container */}

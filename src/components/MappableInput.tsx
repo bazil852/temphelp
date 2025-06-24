@@ -1,8 +1,9 @@
 import React, { useRef, useState } from 'react';
 import InsertValueDropdown from './InsertValueDropdown';
+import TemplateInput from './TemplateInput';
 
 interface MappableInputProps {
-  value: string;
+  value: string | number | any; // Allow any value that can be converted to string
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
@@ -17,6 +18,7 @@ interface MappableInputProps {
   }>;
   label?: string;
   description?: string;
+  compact?: boolean;
 }
 
 export default function MappableInput({
@@ -29,11 +31,25 @@ export default function MappableInput({
   rows = 3,
   dataSources = [],
   label,
-  description
+  description,
+  compact = false
 }: MappableInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [cursorPosition, setCursorPosition] = useState(0);
+  const [isDragOver, setIsDragOver] = useState(false);
+
+  // Convert value to string for safe operations
+  const stringValue = String(value || '');
+
+  // Convert dataSources to the format expected by TemplateInput
+  const templateDataSources = React.useMemo(() => {
+    const combined: Record<string, any> = {};
+    dataSources.forEach(source => {
+      combined[source.id] = source.data;
+    });
+    return combined;
+  }, [dataSources]);
 
   const handleInsert = (template: string) => {
     const element = multiline ? textareaRef.current : inputRef.current;
@@ -42,7 +58,7 @@ export default function MappableInput({
     const start = element.selectionStart || cursorPosition;
     const end = element.selectionEnd || cursorPosition;
     
-    const newValue = value.slice(0, start) + template + value.slice(end);
+    const newValue = stringValue.slice(0, start) + template + stringValue.slice(end);
     onChange(newValue);
 
     // Set cursor position after the inserted template
@@ -53,10 +69,6 @@ export default function MappableInput({
     }, 0);
   };
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    onChange(e.target.value);
-  };
-
   const handleSelectionChange = () => {
     const element = multiline ? textareaRef.current : inputRef.current;
     if (element) {
@@ -64,23 +76,33 @@ export default function MappableInput({
     }
   };
 
-  const baseClassName = `w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${className}`;
-  
-  const commonProps = {
-    value,
-    onChange: handleInputChange,
-    onSelect: handleSelectionChange,
-    onKeyUp: handleSelectionChange,
-    onClick: handleSelectionChange,
-    placeholder,
-    disabled,
+  // Drag and Drop handlers
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    
+    const template = e.dataTransfer.getData('text/plain');
+    if (template && template.startsWith('{{') && template.endsWith('}}')) {
+      handleInsert(template);
+    }
   };
 
   return (
     <div className="space-y-2">
       {label && (
         <div className="flex items-center justify-between">
-          <label className="block text-sm font-medium text-gray-700">
+          <label className="block text-sm font-medium text-gray-300">
             {label}
           </label>
           <div className="relative">
@@ -93,7 +115,7 @@ export default function MappableInput({
         </div>
       )}
       
-      {!label && dataSources.length > 0 && (
+      {!label && dataSources.length > 0 && !compact && (
         <div className="flex justify-start">
           <div className="relative">
             <InsertValueDropdown
@@ -105,32 +127,47 @@ export default function MappableInput({
         </div>
       )}
 
-      {multiline ? (
-        <textarea
-          ref={textareaRef}
-          {...commonProps}
+      <div 
+        className="relative"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <TemplateInput
+          value={stringValue}
+          onChange={onChange}
+          placeholder={placeholder}
+          className={`${compact ? 'px-2 py-1 text-xs' : ''} ${
+            isDragOver ? 'ring-2 ring-blue-500 border-blue-500' : ''
+          } ${className}`}
+          multiline={multiline}
           rows={rows}
-          className={`${baseClassName} resize-vertical`}
+          dataSources={templateDataSources}
+          disabled={disabled}
         />
-      ) : (
-        <input
-          ref={inputRef}
-          {...commonProps}
-          type="text"
-          className={baseClassName}
-        />
-      )}
+        
+        {/* Drop zone indicator */}
+        {isDragOver && (
+          <div className="absolute inset-0 border-2 border-dashed border-blue-400 bg-blue-400/10 rounded-md flex items-center justify-center pointer-events-none z-10">
+            <span className="text-blue-600 text-sm font-medium">Drop to insert template</span>
+          </div>
+        )}
 
-      {description && (
-        <p className="text-xs text-gray-500">{description}</p>
-      )}
+        {/* Compact mode: show insert dropdown as overlay on focus */}
+        {compact && dataSources.length > 0 && (
+          <div className="absolute right-1 top-1/2 transform -translate-y-1/2 z-20">
+            <InsertValueDropdown
+              onInsert={handleInsert}
+              dataSources={dataSources}
+              disabled={disabled}
+              compact={true}
+            />
+          </div>
+        )}
+      </div>
 
-      {/* Template preview */}
-      {value && value.includes('{{') && (
-        <div className="text-xs text-blue-600 bg-black px-2 py-1 rounded">
-          <span className="font-medium">Contains templates:</span>{' '}
-          {value.match(/\{\{[^}]+\}\}/g)?.join(', ') || 'None'}
-        </div>
+      {description && !compact && (
+        <p className="text-xs text-gray-400">{description}</p>
       )}
     </div>
   );

@@ -21,13 +21,15 @@ interface InsertValueDropdownProps {
   dataSources: DataSource[];
   className?: string;
   disabled?: boolean;
+  compact?: boolean;
 }
 
 export default function InsertValueDropdown({ 
   onInsert, 
   dataSources, 
   className = '',
-  disabled = false 
+  disabled = false,
+  compact = false
 }: InsertValueDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [expandedSources, setExpandedSources] = useState<Set<string>>(new Set());
@@ -110,12 +112,22 @@ export default function InsertValueDropdown({
         <button
           type="button"
           onClick={() => setIsOpen(!isOpen)}
-          className="inline-flex items-center px-3 py-1.5 text-xs font-medium text-white bg-gray-700 border border-gray-600 rounded-md hover:bg-gray-600 hover:border-gray-500 transition-colors"
+          className={`inline-flex items-center text-xs font-medium text-white bg-gray-700 border border-gray-600 rounded-md hover:bg-gray-600 hover:border-gray-500 transition-colors ${
+            compact 
+              ? 'px-2 py-1' 
+              : 'px-3 py-1.5'
+          }`}
           disabled={disabled}
         >
-          <span className="hidden sm:inline">Insert Value</span>
-          <span className="sm:hidden">Insert</span>
-          <ChevronDown className={`ml-1 h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+          {compact ? (
+            <span>+</span>
+          ) : (
+            <>
+              <span className="hidden sm:inline">Insert Value</span>
+              <span className="sm:hidden">Insert</span>
+              <ChevronDown className={`ml-1 h-3 w-3 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+            </>
+          )}
         </button>
       </div>
 

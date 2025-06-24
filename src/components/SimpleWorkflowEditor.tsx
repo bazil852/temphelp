@@ -1,7 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Play, Settings, Trash2, ZoomIn, ZoomOut, Maximize2, RotateCcw, Grid, ChevronLeft, ChevronRight } from 'lucide-react';
-import NodeConfigModal from './NodeConfigModal';
 import { getDefaultNodeConfig } from '../types/nodes';
 
 interface SimpleWorkflowEditorProps {
@@ -11,6 +10,8 @@ interface SimpleWorkflowEditorProps {
   // Data mapping props
   triggerData?: any;
   nodeOutputs?: Record<string, any>;
+  // Modal props
+  onNodeClick?: (node: any) => void;
 }
 
 const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({ 
@@ -18,7 +19,8 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
   availableActions, 
   onChange,
   triggerData,
-  nodeOutputs = {}
+  nodeOutputs = {},
+  onNodeClick
 }) => {
   console.log('🔄 SimpleWorkflowEditor component rendered/re-rendered with:', { 
     hasWorkflow: !!workflow, 
@@ -67,10 +69,6 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
   // Touch support
   const [touchStart, setTouchStart] = React.useState<{ x: number; y: number; distance?: number } | null>(null);
   const [isTouchPanning, setIsTouchPanning] = React.useState(false);
-  
-  // Node configuration modal
-  const [selectedNode, setSelectedNode] = React.useState<any>(null);
-  const [isConfigModalOpen, setIsConfigModalOpen] = React.useState(false);
   
   // Sidebar collapse state
   const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
@@ -244,13 +242,14 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
   };
 
   const fitToScreen = () => {
-    if (nodes.length === 0) return;
+    const visibleNodes = nodes.filter(n => n.id !== 'start');
+    if (visibleNodes.length === 0) return;
     
     const padding = 100;
-    const minX = Math.min(...nodes.map(n => n.position.x)) - padding;
-    const maxX = Math.max(...nodes.map(n => n.position.x + 160)) + padding;
-    const minY = Math.min(...nodes.map(n => n.position.y)) - padding;
-    const maxY = Math.max(...nodes.map(n => n.position.y + 80)) + padding;
+    const minX = Math.min(...visibleNodes.map(n => n.position.x)) - padding;
+    const maxX = Math.max(...visibleNodes.map(n => n.position.x + 160)) + padding;
+    const minY = Math.min(...visibleNodes.map(n => n.position.y)) - padding;
+    const maxY = Math.max(...visibleNodes.map(n => n.position.y + 80)) + padding;
     
     const contentWidth = maxX - minX;
     const contentHeight = maxY - minY;
@@ -334,33 +333,20 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
 
   const handleNodeClick = (node: any) => {
     console.log('🎯 Node clicked:', node.id, node.data.actionKind);
-    setSelectedNode(node);
-    setIsConfigModalOpen(true);
-  };
-
-  const handleNodeConfigSave = (nodeId: string, config: any) => {
-    console.log('💾 Saving node config for:', nodeId, 'Config:', config);
-    const newNodes = nodes.map(node => 
-      node.id === nodeId 
-        ? { ...node, data: { ...node.data, config } }
-        : node
-    );
-    console.log('💾 Updated node:', newNodes.find(n => n.id === nodeId));
-    setNodes(newNodes);
-    onChange({ nodes: newNodes, connections, canvasTransform });
+    onNodeClick?.(node);
   };
 
   // Build available nodes list for dropdowns
   const availableNodes = React.useMemo(() => {
     return nodes
-      .filter((node: any) => node.id !== selectedNode?.id) // Exclude current node
+      .filter((node: any) => node.id !== 'start') // Exclude start node
       .map((node: any) => ({
         id: node.id,
         label: node.data?.label || node.data?.actionKind || node.id,
         kind: node.data?.actionKind,
         saveAs: node.data?.config?.saveAs
       }));
-  }, [nodes, selectedNode?.id]);
+  }, [nodes]);
 
   const handleConnectionStart = (nodeId: string, handle: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -371,8 +357,29 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
     if (!sourceNode) return;
     
     // Calculate connection point position based on node position and handle type
-    const connectionX = sourceNode.position.x + (handle === 'output' ? 160 : -8);
-    const connectionY = sourceNode.position.y + 40; // Middle of node height
+    let connectionX = sourceNode.position.x + (handle === 'output' ? 160 : -8);
+    let connectionY = sourceNode.position.y + 40; // Default: middle of node height
+    
+    // For switch nodes, calculate specific handle position
+    if ((sourceNode.data as any).actionKind === 'switch' && handle !== 'output') {
+      const config = (sourceNode.data as any).config || {};
+      const cases = config.cases || [];
+      const hasDefault = !!config.defaultNext;
+      const totalHandles = cases.length + (hasDefault ? 1 : 0);
+      const nodeHeight = 80;
+      const handleSpacing = totalHandles > 1 ? nodeHeight / (totalHandles + 1) : nodeHeight / 2;
+      
+      connectionX = sourceNode.position.x + 160; // Right side for output handles
+      
+      if (handle.startsWith('case-')) {
+        const caseIndex = parseInt(handle.replace('case-', ''));
+        const yOffset = handleSpacing * (caseIndex + 1) - nodeHeight / 2;
+        connectionY = sourceNode.position.y + 40 + yOffset;
+      } else if (handle === 'default') {
+        const yOffset = handleSpacing * (cases.length + 1) - nodeHeight / 2;
+        connectionY = sourceNode.position.y + 40 + yOffset;
+      }
+    }
     
     setConnectionStart({
       nodeId,
@@ -418,8 +425,6 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
     setConnectionStart(null);
     setIsConnectionDragging(false);
   };
-
-
 
   const handleCanvasMouseDown = (event: React.MouseEvent) => {
     const target = event.target as HTMLElement;
@@ -642,7 +647,7 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
                     }}
                   />
                   {/* Node indicators */}
-                  {nodes.map(node => (
+                  {nodes.filter(node => node.id !== 'start').map(node => (
                     <div
                       key={node.id}
                       className="absolute w-1 h-1 bg-[#4DE0F9] rounded-full"
@@ -735,7 +740,7 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
               zIndex: 500 
             }}
           >
-            Nodes: {nodes.length} | Connections: {connections.length} | {
+            Nodes: {nodes.filter(n => n.id !== 'start').length} | Connections: {connections.length} | {
               isConnecting ? '🔗 Connecting...' : 
               isDragging ? '🔄 Dragging...' : 
               (isPanning || isTouchPanning) ? '🤏 Panning...' : 
@@ -765,7 +770,7 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
                 Connection Mode Active
               </div>
               <p style={{ fontSize: `${Math.max(10, 12 / canvasTransform.scale)}px` }} className="text-gray-300">
-                Click on a purple input dot to complete the connection
+                Click on a cyan input dot to complete the connection
               </p>
             </div>
           )}
@@ -834,7 +839,7 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
             </div>
           )}
 
-          {nodes.map((node, index) => (
+          {nodes.filter(node => node.id !== 'start').map((node, index) => (
             <motion.div
               key={node.id}
               initial={{ opacity: 0, scale: 0.8 }}
@@ -900,17 +905,7 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
               }}
             >
                              <div 
-                 className={`
-                   relative min-w-[160px] p-4 rounded-lg border cursor-move select-none
-                   ${node.data.type === 'trigger' 
-                     ? 'bg-gradient-to-r from-[#4DE0F9]/60 to-[#A855F7]/60 border-[#4DE0F9] bg-black/40' 
-                     : 'bg-white/30 border-white/60 bg-black/40'
-                   }
-                   hover:bg-white/40 hover:shadow-[0_12px_40px_rgba(0,0,0,0.6)] transition-all duration-200
-                   shadow-[0_8px_32px_rgba(0,0,0,0.5)]
-                   backdrop-blur-sm
-                   ring-2 ring-white/20
-                 `}
+                 className="glass-panel relative min-w-[160px] p-4 rounded-lg border cursor-move select-none hover:border-[#4DE0F9] hover:shadow-[0_0_20px_rgba(77,224,249,0.3)] transition-all duration-200"
                  style={{ zIndex: 300 }}
                  onClick={(e) => {
                    // Only trigger if not dragging and not clicking connection points
@@ -923,11 +918,7 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
                  }}
                >
                 <div className="flex items-center justify-between mb-2">
-                  <div className={`
-                    w-3 h-3 rounded-full
-                    ${node.data.type === 'trigger' ? 'bg-[#4DE0F9]' : 'bg-[#A855F7]'}
-                    shadow-[0_0_8px_currentColor]
-                  `} />
+                  <div className="w-3 h-3 rounded-full bg-[#4DE0F9] shadow-[0_0_8px_currentColor]" />
                   {node.id !== 'start' && (
                     <button
                       type="button"
@@ -947,62 +938,187 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
                   {node.data.label}
                 </h3>
                 
-                                 <p className="text-gray-300 text-xs">
-                   {node.data.type === 'trigger' ? 'Workflow Entry Point' : `Action: ${(node.data as any).actionKind || 'Unknown'}`}
-                 </p>
+                <p className="text-gray-300 text-xs">
+                  {node.data.type === 'trigger' ? 'Workflow Entry Point' : `Action: ${(node.data as any).actionKind || 'Unknown'}`}
+                </p>
 
-                {/* Canvas chips for trigger types */}
+                {/* Canvas chips for trigger types - using cyan theme only */}
                 {(node.data as any).actionKind === 'webhook-trigger' && (node.data as any).config?.url && (
-                  <div className="absolute -right-1 -top-1 text-xs bg-blue-500/20 border border-blue-400/50 rounded px-1 py-0.5 backdrop-blur-sm">
+                  <div className="absolute -right-1 -top-1 text-xs bg-[#4DE0F9]/20 border border-[#4DE0F9]/50 rounded px-1 py-0.5 backdrop-blur-sm">
                     🌐
                   </div>
                 )}
                 {(node.data as any).actionKind === 'schedule-trigger' && (node.data as any).config?.cron && (
-                  <div className="absolute -right-1 -top-1 text-xs bg-purple-500/20 border border-purple-400/50 rounded px-1 py-0.5 backdrop-blur-sm">
+                  <div className="absolute -right-1 -top-1 text-xs bg-[#4DE0F9]/20 border border-[#4DE0F9]/50 rounded px-1 py-0.5 backdrop-blur-sm">
                     ⏰{(node.data as any).config.cron}
                   </div>
                 )}
 
                 {/* Connection points */}
-                <div 
-                  className="connection-point absolute -right-2 top-1/2 transform -translate-y-1/2 cursor-crosshair z-50"
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    (e.nativeEvent as any).stopImmediatePropagation?.();
+                {/* For switch nodes, render multiple output handles */}
+                {(node.data as any).actionKind === 'switch' ? (
+                  (() => {
+                    const config = (node.data as any).config || {};
+                    const cases = config.cases || [];
+                    const hasDefault = !!config.defaultNext;
+                    const totalHandles = cases.length + (hasDefault ? 1 : 0);
                     
-                    // Prevent any node dragging
-                    setIsDragging(false);
+                    // Calculate vertical spacing for handles
+                    const nodeHeight = 80;
+                    const handleSpacing = totalHandles > 1 ? nodeHeight / (totalHandles + 1) : nodeHeight / 2;
                     
-                    handleConnectionStart(node.id, 'output', e);
-                  }}
-                  onDragStart={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    return false;
-                  }}
-                  onMouseEnter={() => {
-                    document.body.style.cursor = 'crosshair';
-                  }}
-                  onMouseLeave={() => {
-                    if (!isConnecting) {
-                      document.body.style.cursor = 'default';
-                    }
-                  }}
-                                     style={{ 
-                     pointerEvents: 'auto', 
-                     zIndex: 1000,
-                     position: 'absolute',
-                     right: '-10px',
-                     top: '50%',
-                     transform: 'translateY(-50%)',
-                     width: '20px',
-                     height: '20px'
-                   }}
-                  draggable={false}
-                >
-                  <div className="w-5 h-5 bg-[#4DE0F9] rounded-full border-2 border-white/30 shadow-[0_0_8px_#4DE0F9] hover:scale-125 transition-transform" draggable={false} />
-                </div>
+                    return (
+                      <>
+                        {/* Case output handles */}
+                        {cases.map((caseItem: any, index: number) => {
+                          const yOffset = handleSpacing * (index + 1) - nodeHeight / 2;
+                          return (
+                            <div key={`case-${index}`}>
+                              <div 
+                                className="connection-point absolute -right-2 cursor-crosshair z-50"
+                                style={{
+                                  top: '50%',
+                                  transform: `translateY(calc(-50% + ${yOffset}px))`,
+                                  pointerEvents: 'auto',
+                                  zIndex: 1000,
+                                  width: '20px',
+                                  height: '20px'
+                                }}
+                                onMouseDown={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
+                                  (e.nativeEvent as any).stopImmediatePropagation?.();
+                                  setIsDragging(false);
+                                  handleConnectionStart(node.id, `case-${index}`, e);
+                                }}
+                                onDragStart={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  return false;
+                                }}
+                                onMouseEnter={() => {
+                                  document.body.style.cursor = 'crosshair';
+                                }}
+                                onMouseLeave={() => {
+                                  if (!isConnecting) {
+                                    document.body.style.cursor = 'default';
+                                  }
+                                }}
+                                draggable={false}
+                              >
+                                <div className="w-5 h-5 bg-[#4DE0F9] rounded-full border-2 border-white/30 shadow-[0_0_8px_#4DE0F9] hover:scale-125 transition-transform" draggable={false} />
+                              </div>
+                              {/* Case label */}
+                              <div 
+                                className="absolute text-xs text-[#4DE0F9] font-medium whitespace-nowrap pointer-events-none"
+                                style={{
+                                  right: '-8px',
+                                  top: '50%',
+                                  transform: `translateY(calc(-50% + ${yOffset}px + 12px))`,
+                                  zIndex: 999
+                                }}
+                              >
+                                {caseItem.value || `Case ${index + 1}`}
+                              </div>
+                            </div>
+                          );
+                        })}
+                        {/* Default output handle */}
+                        {hasDefault && (
+                          <div key="default">
+                            <div 
+                              className="connection-point absolute -right-2 cursor-crosshair z-50"
+                              style={{
+                                top: '50%',
+                                transform: `translateY(calc(-50% + ${handleSpacing * (cases.length + 1) - nodeHeight / 2}px))`,
+                                pointerEvents: 'auto',
+                                zIndex: 1000,
+                                width: '20px',
+                                height: '20px'
+                              }}
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                (e.nativeEvent as any).stopImmediatePropagation?.();
+                                setIsDragging(false);
+                                handleConnectionStart(node.id, 'default', e);
+                              }}
+                              onDragStart={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                return false;
+                              }}
+                              onMouseEnter={() => {
+                                document.body.style.cursor = 'crosshair';
+                              }}
+                              onMouseLeave={() => {
+                                if (!isConnecting) {
+                                  document.body.style.cursor = 'default';
+                                }
+                              }}
+                              draggable={false}
+                            >
+                              <div className="w-5 h-5 bg-orange-400 rounded-full border-2 border-white/30 shadow-[0_0_8px_orange] hover:scale-125 transition-transform" draggable={false} />
+                            </div>
+                            {/* Default label */}
+                            <div 
+                              className="absolute text-xs text-orange-400 font-medium whitespace-nowrap pointer-events-none"
+                              style={{
+                                right: '-8px',
+                                top: '50%',
+                                transform: `translateY(calc(-50% + ${handleSpacing * (cases.length + 1) - nodeHeight / 2}px + 12px))`,
+                                zIndex: 999
+                              }}
+                            >
+                              default
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()
+                ) : (
+                  /* Regular single output handle for non-switch nodes */
+                  <div 
+                    className="connection-point absolute -right-2 top-1/2 transform -translate-y-1/2 cursor-crosshair z-50"
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      (e.nativeEvent as any).stopImmediatePropagation?.();
+                      
+                      // Prevent any node dragging
+                      setIsDragging(false);
+                      
+                      handleConnectionStart(node.id, 'output', e);
+                    }}
+                    onDragStart={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      return false;
+                    }}
+                    onMouseEnter={() => {
+                      document.body.style.cursor = 'crosshair';
+                    }}
+                    onMouseLeave={() => {
+                      if (!isConnecting) {
+                        document.body.style.cursor = 'default';
+                      }
+                    }}
+                    style={{ 
+                      pointerEvents: 'auto', 
+                      zIndex: 1000,
+                      position: 'absolute',
+                      right: '-10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '20px',
+                      height: '20px'
+                    }}
+                    draggable={false}
+                  >
+                    <div className={`w-5 h-5 bg-[#4DE0F9] rounded-full border-2 border-white/30 shadow-[0_0_8px_#4DE0F9] hover:scale-125 transition-transform ${isConnecting ? 'ring-2 ring-white/50 animate-pulse' : ''}`} draggable={false} />
+                  </div>
+                )}
                 {node.id !== 'start' && (
                   <div 
                     className="connection-point absolute -left-2 top-1/2 transform -translate-y-1/2 cursor-crosshair z-50"
@@ -1031,19 +1147,19 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
                         document.body.style.cursor = 'default';
                       }
                     }}
-                                         style={{ 
-                       pointerEvents: 'auto', 
-                       zIndex: 1000,
-                       position: 'absolute',
-                       left: '-10px',
-                       top: '50%',
-                       transform: 'translateY(-50%)',
-                       width: '20px',
-                       height: '20px'
-                     }}
+                    style={{ 
+                      pointerEvents: 'auto', 
+                      zIndex: 1000,
+                      position: 'absolute',
+                      left: '-10px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      width: '20px',
+                      height: '20px'
+                    }}
                     draggable={false}
                   >
-                    <div className={`w-5 h-5 bg-[#A855F7] rounded-full border-2 border-white/30 shadow-[0_0_8px_#A855F7] hover:scale-125 transition-transform ${isConnecting ? 'ring-2 ring-white/50 animate-pulse' : ''}`} draggable={false} />
+                    <div className={`w-5 h-5 bg-[#4DE0F9] rounded-full border-2 border-white/30 shadow-[0_0_8px_#4DE0F9] hover:scale-125 transition-transform ${isConnecting ? 'ring-2 ring-white/50 animate-pulse' : ''}`} draggable={false} />
                   </div>
                 )}
               </div>
@@ -1061,34 +1177,67 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
             }}
           >
             {/* Render existing connections */}
-            {connections.map((connection) => {
+            {connections
+              .filter(connection => connection.source !== 'start' && connection.target !== 'start')
+              .map((connection) => {
               const sourceNode = nodes.find(n => n.id === connection.source);
               const targetNode = nodes.find(n => n.id === connection.target);
               
               if (!sourceNode || !targetNode) return null;
               
-              const sourceX = sourceNode.position.x + 160; // node width + connection point offset
-              const sourceY = sourceNode.position.y + 40; // half node height
-              const targetX = targetNode.position.x - 8; // connection point offset
-              const targetY = targetNode.position.y + 40;
+              // Calculate source position based on handle type for switch nodes
+              let sourceX = sourceNode.position.x + 160; // node width + connection point offset
+              let sourceY = sourceNode.position.y + 40; // default: center of node
               
-              // Create a curved path
-              const midX = (sourceX + targetX) / 2;
-              const pathData = `M ${sourceX} ${sourceY} C ${midX} ${sourceY} ${midX} ${targetY} ${targetX} ${targetY}`;
+              // For switch nodes, calculate specific handle position
+              if ((sourceNode.data as any).actionKind === 'switch' && connection.sourceHandle !== 'output') {
+                const config = (sourceNode.data as any).config || {};
+                const cases = config.cases || [];
+                const hasDefault = !!config.defaultNext;
+                const totalHandles = cases.length + (hasDefault ? 1 : 0);
+                const nodeHeight = 80;
+                const handleSpacing = totalHandles > 1 ? nodeHeight / (totalHandles + 1) : nodeHeight / 2;
+                
+                if (connection.sourceHandle?.startsWith('case-')) {
+                  const caseIndex = parseInt(connection.sourceHandle.replace('case-', ''));
+                  const yOffset = handleSpacing * (caseIndex + 1) - nodeHeight / 2;
+                  sourceY = sourceNode.position.y + 40 + yOffset;
+                } else if (connection.sourceHandle === 'default') {
+                  const yOffset = handleSpacing * (cases.length + 1) - nodeHeight / 2;
+                  sourceY = sourceNode.position.y + 40 + yOffset;
+                }
+              }
+              
+              const targetX = targetNode.position.x; // align with left edge of target node
+              const targetY = targetNode.position.y + 40; // center of target node
+              
+              // Create a curved path (React Flow style)
+              const midX = sourceX + (targetX - sourceX) * 0.5;
+              const controlOffset = Math.abs(targetX - sourceX) * 0.3;
+              const pathData = `M ${sourceX} ${sourceY} C ${sourceX + controlOffset} ${sourceY} ${targetX - controlOffset} ${targetY} ${targetX} ${targetY}`;
+              
+              // Determine connection color based on handle type
+              let strokeColor = "#4DE0F9";
+              if (connection.sourceHandle === 'default') {
+                strokeColor = "orange";
+              }
               
               return (
                 <g key={connection.id}>
                   <path
                     d={pathData}
-                    stroke="#4DE0F9"
-                    strokeWidth="3"
+                    stroke={strokeColor}
+                    strokeWidth="2"
                     fill="none"
-                    className="drop-shadow-[0_0_8px_rgba(77,224,249,0.5)]"
-                    style={{ filter: 'drop-shadow(0 0 8px rgba(77, 224, 249, 0.5))' }}
+                    className="react-flow__edge-path"
+                    style={{ 
+                      filter: `drop-shadow(0 0 4px ${strokeColor === 'orange' ? 'rgba(255,165,0,0.3)' : 'rgba(77, 224, 249, 0.3)'})`,
+                      strokeLinecap: 'round'
+                    }}
                   />
                   {/* Connection dots */}
-                  <circle cx={sourceX} cy={sourceY} r="4" fill="#4DE0F9" className="drop-shadow-[0_0_4px_rgba(77,224,249,0.8)]" />
-                  <circle cx={targetX} cy={targetY} r="4" fill="#A855F7" className="drop-shadow-[0_0_4px_rgba(168,85,247,0.8)]" />
+                  <circle cx={sourceX} cy={sourceY} r="3" fill={strokeColor} className={`drop-shadow-[0_0_4px_${strokeColor === 'orange' ? 'rgba(255,165,0,0.8)' : 'rgba(77,224,249,0.8)'}]`} />
+                  <circle cx={targetX} cy={targetY} r="3" fill="#4DE0F9" className="drop-shadow-[0_0_4px_rgba(77,224,249,0.8)]" />
                 </g>
               );
             })}
@@ -1097,19 +1246,27 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
             {isConnecting && connectionStart && (
               <g>
                 <path
-                  d={`M ${connectionStart.position.x} ${connectionStart.position.y} L ${mousePosition.x} ${mousePosition.y}`}
+                  d={(() => {
+                    const sourceX = connectionStart.position.x;
+                    const sourceY = connectionStart.position.y;
+                    const targetX = mousePosition.x;
+                    const targetY = mousePosition.y;
+                    const controlOffset = Math.abs(targetX - sourceX) * 0.3;
+                    return `M ${sourceX} ${sourceY} C ${sourceX + controlOffset} ${sourceY} ${targetX - controlOffset} ${targetY} ${targetX} ${targetY}`;
+                  })()}
                   stroke="#4DE0F9"
-                  strokeWidth="3"
-                  strokeDasharray="8,4"
+                  strokeWidth="2"
+                  strokeDasharray="5,5"
                   fill="none"
-                  className="drop-shadow-[0_0_8px_rgba(77,224,249,0.5)]"
+                  className="react-flow__connectionline"
                   style={{ 
-                    filter: 'drop-shadow(0 0 8px rgba(77, 224, 249, 0.5))',
-                    opacity: 0.8
+                    filter: 'drop-shadow(0 0 4px rgba(77, 224, 249, 0.5))',
+                    opacity: 0.8,
+                    strokeLinecap: 'round'
                   }}
                 />
-                <circle cx={connectionStart.position.x} cy={connectionStart.position.y} r="4" fill="#4DE0F9" className="drop-shadow-[0_0_4px_rgba(77,224,249,0.8)]" />
-                <circle cx={mousePosition.x} cy={mousePosition.y} r="4" fill="#A855F7" className="drop-shadow-[0_0_4px_rgba(168,85,247,0.8)]" />
+                <circle cx={connectionStart.position.x} cy={connectionStart.position.y} r="3" fill="#4DE0F9" className="drop-shadow-[0_0_4px_rgba(77,224,249,0.8)]" />
+                <circle cx={mousePosition.x} cy={mousePosition.y} r="3" fill="#4DE0F9" className="drop-shadow-[0_0_4px_rgba(77,224,249,0.8)]" />
               </g>
             )}
           </svg>
@@ -1129,7 +1286,7 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
             </p>
             <div className="text-xs text-gray-400">
               • <strong>Drag nodes</strong> by their body to move them<br/>
-              • <strong>Create connections</strong> by clicking blue output dots, then purple input dots<br/>
+              • <strong>Create connections</strong> by clicking cyan output dots, then cyan input dots<br/>
               • <strong>Delete nodes</strong> using the red trash icon<br/>
               • <strong>Add nodes</strong> from the sidebar on the right
             </div>
@@ -1294,19 +1451,6 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
 
 
        </motion.div>
-
-      {/* Node Configuration Modal */}
-      <NodeConfigModal
-        isOpen={isConfigModalOpen}
-        onClose={() => setIsConfigModalOpen(false)}
-        node={selectedNode}
-        onSave={handleNodeConfigSave}
-        onDelete={removeNode}
-        workflowId={workflow?.id}
-        triggerData={triggerData}
-        nodeOutputs={nodeOutputs}
-        availableNodes={availableNodes}
-      />
     </div>
   );
 }, (prevProps, nextProps) => {

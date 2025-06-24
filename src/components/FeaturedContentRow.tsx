@@ -17,9 +17,10 @@ interface FeaturedContentRowProps {
   title: string;
   items: ContentItem[];
   type: 'video' | 'influencer';
+  isLoading?: boolean;
 }
 
-export default function FeaturedContentRow({ title, items, type }: FeaturedContentRowProps) {
+export default function FeaturedContentRow({ title, items, type, isLoading = false }: FeaturedContentRowProps) {
   const [selectedVideo, setSelectedVideo] = React.useState<ContentItem | null>(null);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const [showArrows, setShowArrows] = React.useState(false);
@@ -64,7 +65,23 @@ export default function FeaturedContentRow({ title, items, type }: FeaturedConte
           onMouseEnter={() => setShowArrows(true)}
           onMouseLeave={() => setShowArrows(false)}
         >
-          {items.map((item) => (
+          {isLoading ? (
+            // Loading skeletons
+            Array.from({ length: 4 }, (_, index) => (
+              <div key={`skeleton-${index}`} className="flex-none">
+                <div className="w-[280px]">
+                  <div className="relative h-48 rounded-xl overflow-hidden bg-white/10 animate-pulse">
+                    <div className="absolute inset-0 bg-gradient-to-r from-white/5 via-white/10 to-white/5 animate-pulse" />
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 p-4">
+                    <div className="h-4 bg-white/10 rounded animate-pulse mb-2" />
+                    <div className="h-3 bg-white/5 rounded animate-pulse w-16" />
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            items.map((item) => (
             <motion.div
               key={item.id}
               whileHover={{ scale: 1.05 }}
@@ -111,7 +128,8 @@ export default function FeaturedContentRow({ title, items, type }: FeaturedConte
                 </div>
               </div>
             </motion.div>
-          ))}
+            ))
+          )}
         </div>
       </div>
 

@@ -55,12 +55,12 @@ export default function FloatingSidebar() {
     { icon: Home, label: 'Home', path: '/dashboard' },
     { icon: Users, label: 'Influencers', path: '/influencers' },
     { icon: Film, label: 'Videos', path: '/videos' },
-    { icon: Workflow, label: 'Automation', path: '/automation-builder' },
-    { icon: Mic, label: 'Podcast Studio', path: '/podcast-studio' },
+    { icon: Workflow, label: 'Workflows', path: '/automation-builder' },
+    // { icon: Mic, label: 'Podcast Studio', path: '/podcast-studio' },
     { icon: Webhook, label: 'Automations', path: '/webhooks', onClick: handleAutomationClick },
     { isSeparator: true },
     { icon: Languages, label: 'Video Dubbing', path: '/video-dubbing' },
-    { icon: Scissors, label: 'Video Editor', path: '/video-editor' },
+    // { icon: Scissors, label: 'Video Editor', path: '/video-editor' },
     { isSeparator: true },
     { icon: Book, label: 'Tutorials', path: '/tutorials' },
     { icon: Settings, label: 'Settings', path: '/settings' },
@@ -71,31 +71,39 @@ export default function FloatingSidebar() {
       {/* Mobile Menu Button */}
       <button
         onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-        className="lg:hidden fixed top-4 left-4 z-[100] p-2 rounded-lg bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/20 transition-colors"
+        className="lg:hidden fixed top-4 left-4 z-[110] p-2 rounded-lg bg-white/10 backdrop-blur-xl border border-white/20 text-white hover:bg-white/20 transition-colors"
       >
         {isMobileMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
       </button>
 
+      {/* Mobile Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="lg:hidden fixed inset-0 bg-black/50 z-[85] backdrop-blur-sm"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar */}
-      <motion.div
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ 
-          type: "spring", 
-          stiffness: 100, 
-          damping: 20,
-          duration: 0.5
-        }}
-        className={`fixed z-[90] lg:left-2 lg:top-[10%] ${
-          isMobileMenuOpen ? 'left-0 top-0' : '-left-full lg:left-2'
-        }`}
+      <div
+        className={`fixed z-[90] transition-all duration-300 ease-in-out
+          lg:left-2 lg:top-[10%] 
+          ${isMobileMenuOpen 
+            ? 'left-0 top-0' 
+            : '-left-full top-0 lg:left-2'
+          }`}
       >
         <motion.div
           onHoverStart={() => !isMobileMenuOpen && setIsExpanded(true)}
           onHoverEnd={() => !isMobileMenuOpen && setIsExpanded(false)}
           className="relative bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] overflow-hidden lg:h-[80vh] h-screen lg:rounded-2xl rounded-none"
           animate={{
-            width: isExpanded ? 240 : 80,
+            width: isExpanded || isMobileMenuOpen ? 240 : 80,
           }}
           transition={{ 
             duration: 0.4,
@@ -215,7 +223,7 @@ export default function FloatingSidebar() {
             )}
           </div>
         </motion.div>
-      </motion.div>
+      </div>
 
       {/* Webhook Modal */}
       {isWebhookModalOpen && (

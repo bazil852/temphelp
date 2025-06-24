@@ -113,6 +113,9 @@ export default function VideoCard({ content, isSelected, onSelect, onAddCaption,
           <input
             type="checkbox"
             checked={isSelected}
+            onClick={(e) => {
+              e.stopPropagation();
+            }}
             onChange={(e) => {
               e.stopPropagation();
               onSelect(content.id);

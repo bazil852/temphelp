@@ -5,8 +5,8 @@
 /* Base styles */
 :root {
   --primary-glow: #4DE0F9;
-  --secondary-glow: #A855F7;
-  --bg-gradient: radial-gradient(circle at center, rgba(77, 224, 249, 0.15) 0%, rgba(168, 85, 247, 0.1) 30%, #0D1117 70%);
+  --secondary-glow: #4DE0F9;
+  --bg-gradient: radial-gradient(circle at center, rgba(77, 224, 249, 0.15) 0%, rgba(77, 224, 249, 0.05) 30%, #0D1117 70%);
   --grid-size: 40px;
   --grid-color: rgba(77, 224, 249, 0.05);
   
@@ -727,63 +727,6 @@ select option {
 }
 
 .nav-item {
-  @apply inline-flex items-center px-3 py-2 text-sm font-medium text-white/70 hover:text-white transition-all duration-200;
-  position: relative;
-}
-
-.nav-item::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 0.5rem;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.nav-item:hover::before {
-  opacity: 1;
-}
-
-.nav-item svg {
-  filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.2));
-  transition: filter 0.2s ease;
-}
-
-.nav-item:hover svg {
-  filter: drop-shadow(0 0 12px rgba(255, 255, 255, 0.4));
-}
-
-.nav-dropdown {
-  @apply absolute top-full mt-1 w-48 rounded-lg overflow-hidden;
-  background: rgba(13, 17, 23, 0.8);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 10px 30px rgba(0, 0, 0, 0.2),
-    0 0 1px rgba(255, 255, 255, 0.1);
-}
-
-.nav-dropdown-item {
-  @apply w-full px-4 py-2 text-sm text-white/70 hover:text-white flex items-center gap-2 transition-colors;
-  position: relative;
-}
-
-.nav-dropdown-item::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: rgba(255, 255, 255, 0.05);
-  opacity: 0;
-  transition: opacity 0.2s ease;
-}
-
-.nav-dropdown-item:hover::before {
-  opacity: 1;
-}
-
-/* Navbar styles */
-.nav-item {
   @apply inline-flex items-center px-3 py-2 text-sm font-medium rounded-lg text-gray-400 hover:text-[#4DE0F9] hover:bg-[#4DE0F9]/5 focus:outline-none transition-all duration-200;
   text-shadow: 0 0 20px rgba(77, 224, 249, 0.2);
 }
@@ -797,7 +740,7 @@ select option {
   border: 1px solid rgba(77, 224, 249, 0.2);
 }
 
-/* Inngest Workflow Kit Dark Theme Overrides */
+/* React Flow Glass Panel Theme */
 .reactflow-wrapper {
   background: transparent !important;
 }
@@ -812,11 +755,13 @@ select option {
   color: white !important;
   backdrop-filter: blur(20px) !important;
   border-radius: 12px !important;
+  transition: all 0.2s ease !important;
 }
 
 .react-flow__node:hover {
   background: rgba(255, 255, 255, 0.15) !important;
   border-color: #4DE0F9 !important;
+  box-shadow: 0 0 20px rgba(77, 224, 249, 0.3) !important;
 }
 
 .react-flow__node-default {
@@ -837,21 +782,42 @@ select option {
   border: 1px solid rgba(255, 255, 255, 0.1) !important;
 }
 
+/* Cyan-only connection elements */
 .react-flow__edge-path {
-  stroke: rgba(77, 224, 249, 0.6) !important;
+  stroke: #4DE0F9 !important;
+  stroke-width: 2px !important;
 }
 
 .react-flow__edge.selected .react-flow__edge-path {
   stroke: #4DE0F9 !important;
+  stroke-width: 3px !important;
+}
+
+.react-flow__connectionline {
+  stroke: #4DE0F9 !important;
+  stroke-width: 2px !important;
+  stroke-dasharray: 5,5 !important;
+  opacity: 0.8 !important;
 }
 
 .react-flow__handle {
   background: #4DE0F9 !important;
   border: 2px solid rgba(255, 255, 255, 0.3) !important;
+  width: 12px !important;
+  height: 12px !important;
+  transition: all 0.2s ease !important;
 }
 
 .react-flow__handle:hover {
-  background: #A855F7 !important;
+  background: #4DE0F9 !important;
+  transform: scale(1.2) !important;
+  box-shadow: 0 0 12px rgba(77, 224, 249, 0.6) !important;
+}
+
+.react-flow__handle-connecting {
+  background: #4DE0F9 !important;
+  transform: scale(1.3) !important;
+  box-shadow: 0 0 16px rgba(77, 224, 249, 0.8) !important;
 }
 
 .react-flow__controls {
@@ -868,7 +834,8 @@ select option {
 }
 
 .react-flow__controls button:hover {
-  background: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(77, 224, 249, 0.1) !important;
+  color: #4DE0F9 !important;
 }
 
 .react-flow__minimap {

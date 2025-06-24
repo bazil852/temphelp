@@ -20,7 +20,10 @@ import CreateVideoModal from "../components/CreateVideoModal";
 import BulkCreateModal from "../components/BulkCreateModal";
 import WebhookModal from "../components/WebhookModal";
 import VideoCard from "../components/VideoCard";
+import VideoPlayerModal from "../components/VideoPlayerModal";
+import VideoDetailModal from "../components/VideoDetailModal";
 import { useAuthStore } from '../store/authStore';
+
 
 interface ContentPageProps {
   isClone?: boolean;
@@ -32,6 +35,8 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showBulkCreate, setShowBulkCreate] = useState(false);
   const [showWebhooks, setShowWebhooks] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<{ url: string; title: string } | null>(null);
+  const [selectedContent, setSelectedContent] = useState<any>(null);
   const { videoMinutes, videoMinutesUsed, loading: limitsLoading } = usePlanLimits();
   const [selectedContents, setSelectedContents] = useState<string[]>([]);
   const { influencers, fetchInfluencers } = useInfluencerStore();
@@ -133,25 +138,18 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
   };
 
   const handleAddCaption = async (videoUrl: string) => {
-    console.log(videoUrl)
-    try {
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/add-caption`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ videoUrl }),
+    const content = currentContents.find(c => c.video_url === videoUrl);
+    
+    if (content) {
+      setSelectedVideo({
+        url: videoUrl,
+        title: content.title
       });
-  
-      if (!response.ok) {
-        throw new Error('Failed to send video URL');
-      }
-  
-      const data = await response.json();
-      console.log('Caption Added:', data);
-    } catch (error) {
-      console.error('Error adding caption:', error);
     }
+  };
+
+  const handleOpenModal = (content: any) => {
+    setSelectedContent(content);
   };  
 
   if (isLoading) {
@@ -289,6 +287,7 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
               }
             }}
             onAddCaption={handleAddCaption}
+            onOpenModal={handleOpenModal}
           />
         ))}
       </div>
@@ -315,6 +314,24 @@ export default function ContentPage({ isClone = false }: ContentPageProps) {
         <WebhookModal
           influencerId={id}
           onClose={() => setShowWebhooks(false)}
+        />
+      )}
+
+      {/* Video Player Modal */}
+      {selectedVideo && (
+        <VideoPlayerModal
+          videoUrl={selectedVideo.url}
+          title={selectedVideo.title}
+          onClose={() => setSelectedVideo(null)}
+        />
+      )}
+
+      {/* Video Detail Modal */}
+      {selectedContent && (
+        <VideoDetailModal
+          content={selectedContent}
+          onClose={() => setSelectedContent(null)}
+          onAddCaption={handleAddCaption}
         />
       )}
     </div>

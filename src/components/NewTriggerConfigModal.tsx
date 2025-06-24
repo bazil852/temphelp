@@ -5,6 +5,7 @@ import { activateWorkflow, deactivateWorkflow, getWebhookInfo, regenerateWebhook
 import { webhookTestService, WebhookTestState } from '../services/webhookTestService';
 import toast from 'react-hot-toast';
 import cronstrue from 'cronstrue';
+import TemplateInput from './TemplateInput';
 
 interface NewTriggerConfigModalProps {
   isOpen: boolean;
@@ -23,8 +24,99 @@ interface TriggerConfig {
   cron?: string;
   timezone?: string;
   samplePayload?: any;
+  // Schedule picker state (UI only, not stored)
+  scheduleFrequency?: 'minute' | 'hour' | 'day' | 'week' | 'month';
+  scheduleDetails?: {
+    minute?: number;
+    hour?: number;
+    dayOfWeek?: number;
+    dayOfMonth?: number;
+  };
   [key: string]: any;
 }
+
+// Helper functions for cron generation
+const generateCronFromSchedule = (frequency: string, details: any): string => {
+  switch (frequency) {
+    case 'minute':
+      return '* * * * *'; // Every minute
+    case 'hour':
+      const minute = details?.minute || 0;
+      return `${minute} * * * *`; // Every hour at specified minute
+    case 'day':
+      const dailyMinute = details?.minute || 0;
+      const dailyHour = details?.hour || 9;
+      return `${dailyMinute} ${dailyHour} * * *`; // Daily at specified time
+    case 'week':
+      const weeklyMinute = details?.minute || 0;
+      const weeklyHour = details?.hour || 9;
+      const dayOfWeek = details?.dayOfWeek || 1; // 1 = Monday
+      return `${weeklyMinute} ${weeklyHour} * * ${dayOfWeek}`; // Weekly on specified day/time
+    case 'month':
+      const monthlyMinute = details?.minute || 0;
+      const monthlyHour = details?.hour || 9;
+      const dayOfMonth = details?.dayOfMonth || 1;
+      return `${monthlyMinute} ${monthlyHour} ${dayOfMonth} * *`; // Monthly on specified day/time
+    default:
+      return '*/10 * * * *'; // Default: every 10 minutes
+  }
+};
+
+const parseCronToSchedule = (cron: string): { frequency: string; details: any } | null => {
+  if (!cron) return null;
+  
+  const parts = cron.split(' ');
+  if (parts.length !== 5) return null;
+  
+  const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
+  
+  // Every minute: * * * * *
+  if (minute === '*' && hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*') {
+    return { frequency: 'minute', details: {} };
+  }
+  
+  // Every hour: X * * * *
+  if (hour === '*' && dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && minute !== '*') {
+    return { frequency: 'hour', details: { minute: parseInt(minute) || 0 } };
+  }
+  
+  // Daily: X Y * * *
+  if (dayOfMonth === '*' && month === '*' && dayOfWeek === '*' && minute !== '*' && hour !== '*') {
+    return { 
+      frequency: 'day', 
+      details: { 
+        minute: parseInt(minute) || 0, 
+        hour: parseInt(hour) || 9 
+      } 
+    };
+  }
+  
+  // Weekly: X Y * * Z
+  if (dayOfMonth === '*' && month === '*' && dayOfWeek !== '*' && minute !== '*' && hour !== '*') {
+    return { 
+      frequency: 'week', 
+      details: { 
+        minute: parseInt(minute) || 0, 
+        hour: parseInt(hour) || 9,
+        dayOfWeek: parseInt(dayOfWeek) || 1
+      } 
+    };
+  }
+  
+  // Monthly: X Y Z * *
+  if (month === '*' && dayOfWeek === '*' && minute !== '*' && hour !== '*' && dayOfMonth !== '*') {
+    return { 
+      frequency: 'month', 
+      details: { 
+        minute: parseInt(minute) || 0, 
+        hour: parseInt(hour) || 9,
+        dayOfMonth: parseInt(dayOfMonth) || 1
+      } 
+    };
+  }
+  
+  return null; // Complex cron that doesn't fit our patterns
+};
 
 const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
   isOpen,
@@ -40,7 +132,6 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [cronDescription, setCronDescription] = useState<string>('');
   const [cronError, setCronError] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'config' | 'test'>('config');
   const [testState, setTestState] = useState<WebhookTestState>({ state: 'idle' });
   const [copySuccess, setCopySuccess] = useState(false);
 
@@ -69,10 +160,15 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
           };
           break;
         case 'schedule-trigger':
+          const existingCron = existingConfig.cron || '*/10 * * * *';
+          const scheduleData = parseCronToSchedule(existingCron) || { frequency: 'hour', details: { minute: 0 } };
+          
           defaultConfig = {
-            cron: existingConfig.cron || '*/10 * * * *', // Every 10 minutes default
+            cron: existingCron,
             description: existingConfig.description || '',
             timezone: existingConfig.timezone || 'UTC',
+            scheduleFrequency: scheduleData.frequency as any,
+            scheduleDetails: scheduleData.details || {},
             ...existingConfig
           };
           break;
@@ -215,6 +311,17 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
     parseCronExpression(value);
   };
 
+  const handleScheduleChange = (frequency: string, details: any) => {
+    const newCron = generateCronFromSchedule(frequency, details);
+    setConfig((prev: TriggerConfig) => ({ 
+      ...prev, 
+      cron: newCron,
+      scheduleFrequency: frequency as any,
+      scheduleDetails: details
+    }));
+    parseCronExpression(newCron);
+  };
+
   const handleSave = () => {
     // Validate schedule trigger cron
     if (node.data?.actionKind === 'schedule-trigger' && cronError) {
@@ -222,14 +329,18 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
       return;
     }
     
+    // Filter out UI-only properties before saving
+    const { scheduleFrequency, scheduleDetails, ...configToSave } = config;
+    
     console.log('💾 Saving trigger configuration:', {
       nodeId: node.id,
-      config: config,
-      hasSamplePayload: !!config.samplePayload,
-      samplePayloadSize: config.samplePayload ? JSON.stringify(config.samplePayload).length : 0
+      config: configToSave,
+      hasSamplePayload: !!configToSave.samplePayload,
+      samplePayloadSize: configToSave.samplePayload ? JSON.stringify(configToSave.samplePayload).length : 0,
+      filteredOutUIState: { scheduleFrequency, scheduleDetails }
     });
     
-    onSave(node.id, config);
+    onSave(node.id, configToSave);
     onClose();
     toast.success('Trigger configuration saved');
   };
@@ -306,12 +417,8 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
   const handleUseSample = () => {
     if (testState.samplePayload) {
       // Payload is already saved automatically during capture
-      // Just clear test state and switch to config tab
       setTestState({ state: 'idle' });
-      setActiveTab('config');
-      
       toast.success('✅ Using captured sample payload for data mapping');
-      console.log('✅ Switched to config tab to view saved payload');
     }
   };
 
@@ -327,285 +434,109 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex space-x-1 bg-gray-800 p-1 rounded-lg">
-        <button
-          onClick={() => setActiveTab('config')}
-          className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeTab === 'config'
-              ? 'bg-gray-700 text-white'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          Configuration
-        </button>
-        <button
-          onClick={() => setActiveTab('test')}
-          className={`flex-1 px-3 py-2 text-sm font-medium rounded-md transition-colors ${
-            activeTab === 'test'
-              ? 'bg-gray-700 text-white'
-              : 'text-gray-400 hover:text-white'
-          }`}
-        >
-          Test Webhook
-        </button>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'config' && (
+      {webhookInfo ? (
         <div className="space-y-4">
-          {webhookInfo ? (
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Webhook URL</label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={webhookInfo.url}
-                    readOnly
-                    className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white font-mono text-sm"
-                  />
-                  <button
-                    onClick={() => handleCopy(webhookInfo.url, 'Webhook URL')}
-                    className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-                  >
-                    {copiedField === 'Webhook URL' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Token</label>
-                <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={webhookInfo.token}
-                    readOnly
-                    className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white font-mono text-sm"
-                  />
-                  <button
-                    onClick={() => handleCopy(webhookInfo.token, 'Token')}
-                    className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-                  >
-                    {copiedField === 'Token' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <button
-                  onClick={handleRegenerateToken}
-                  disabled={isLoading}
-                  className="flex items-center space-x-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-800 text-white rounded transition-colors"
-                >
-                  <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
-                  <span>Regenerate Token</span>
-                </button>
-              </div>
-
-              <div className="bg-gray-800/50 rounded-lg p-4">
-                <div className="flex items-center space-x-2 mb-2">
-                  <AlertCircle className="w-4 h-4 text-blue-400" />
-                  <span className="text-sm font-medium text-gray-300">Status</span>
-                </div>
-                <p className="text-sm text-gray-400">
-                  {webhookInfo?.captured_at 
-                    ? `Last request received: ${new Date(webhookInfo.captured_at).toLocaleString()}`
-                    : 'No requests captured yet'
-                  }
-                </p>
-              </div>
-
-              {/* Sample Payload Section */}
-              {config.samplePayload && (
-                <div className="bg-gray-800/50 rounded-lg p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center space-x-2">
-                      <CheckCircle className="w-4 h-4 text-green-400" />
-                      <span className="text-sm font-medium text-gray-300">Sample Payload Captured</span>
-                    </div>
-                    <button
-                      onClick={() => setConfig({ ...config, samplePayload: undefined })}
-                      className="text-gray-400 hover:text-red-400 transition-colors"
-                      title="Clear sample payload"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                  <pre className="bg-gray-900 border border-gray-700 rounded p-3 text-sm text-gray-300 overflow-auto max-h-32">
-                    {JSON.stringify(config.samplePayload, null, 2)}
-                  </pre>
-                  <p className="text-xs text-gray-500 mt-2">
-                    This sample payload will be used for data mapping in other nodes.
-                  </p>
-                  <div className="flex gap-2 mt-3">
-                    <button
-                      onClick={() => setActiveTab('test')}
-                      className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded transition-colors"
-                    >
-                      Capture New Sample
-                    </button>
-                    <button
-                      onClick={() => handleCopy(JSON.stringify(config.samplePayload, null, 2), 'Sample Payload')}
-                      className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded transition-colors"
-                    >
-                      {copiedField === 'Sample Payload' ? 'Copied!' : 'Copy JSON'}
-                    </button>
-                  </div>
-                </div>
-              )}
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Webhook URL</label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={webhookInfo.url}
+                readOnly
+                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white font-mono text-sm"
+              />
+              <button
+                onClick={() => handleCopy(webhookInfo.url, 'Webhook URL')}
+                className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+              >
+                {copiedField === 'Webhook URL' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
             </div>
-          ) : (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                <Zap className="w-8 h-8 text-gray-400" />
-              </div>
-              <p className="text-gray-400">
-                {isLoading ? 'Loading webhook information...' : 'Webhook will be created when workflow is activated'}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+          </div>
 
-      {activeTab === 'test' && (
-        <div className="space-y-4">
-          <div className="text-center">
-            <h3 className="text-lg font-medium text-white mb-2">Test Webhook</h3>
-            <p className="text-gray-400 text-sm mb-4">
-              Generate a temporary URL to test your webhook and capture sample payloads
+          <div>
+            <label className="block text-sm font-medium text-gray-300 mb-2">Token</label>
+            <div className="flex items-center space-x-2">
+              <input
+                type="text"
+                value={webhookInfo.token}
+                readOnly
+                className="flex-1 bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white font-mono text-sm"
+              />
+              <button
+                onClick={() => handleCopy(webhookInfo.token, 'Token')}
+                className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
+              >
+                {copiedField === 'Token' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <button
+              onClick={handleRegenerateToken}
+              disabled={isLoading}
+              className="flex items-center space-x-2 px-4 py-2 bg-yellow-600 hover:bg-yellow-700 disabled:bg-yellow-800 text-white rounded transition-colors"
+            >
+              <RefreshCw className={`w-4 h-4 ${isLoading ? 'animate-spin' : ''}`} />
+              <span>Regenerate Token</span>
+            </button>
+          </div>
+
+          <div className="bg-gray-800/50 rounded-lg p-4">
+            <div className="flex items-center space-x-2 mb-2">
+              <AlertCircle className="w-4 h-4 text-blue-400" />
+              <span className="text-sm font-medium text-gray-300">Status</span>
+            </div>
+            <p className="text-sm text-gray-400">
+              {webhookInfo?.captured_at 
+                ? `Last request received: ${new Date(webhookInfo.captured_at).toLocaleString()}`
+                : 'No requests captured yet'
+              }
             </p>
           </div>
 
-          {/* Show existing sample payload info */}
+          {/* Sample Payload Section */}
           {config.samplePayload && (
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-              <div className="flex items-center space-x-2">
-                <CheckCircle className="w-4 h-4 text-green-400" />
-                <span className="text-sm text-green-400 font-medium">Sample payload already captured</span>
-              </div>
-              <p className="text-xs text-gray-400 mt-1">
-                Testing again will replace the existing sample payload.
-              </p>
-            </div>
-          )}
-
-          {testState.state === 'idle' && (
-            <div className="text-center">
-              <button
-                onClick={handleTestWebhook}
-                className="bg-[#4DE0F9] text-black px-6 py-3 rounded-lg font-medium hover:bg-[#4DE0F9]/90 transition-colors"
-              >
-                <Play className="w-4 h-4 mr-2 inline" />
-                Start Webhook Test
-              </button>
-            </div>
-          )}
-
-          {testState.state === 'waiting' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center text-blue-400">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-400 mr-2"></div>
-                <span>Waiting for webhook...</span>
-              </div>
-
-              <div className="bg-gray-800 border border-gray-600 rounded-lg p-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Test Webhook URL
-                </label>
+            <div className="bg-gray-800/50 rounded-lg p-4">
+              <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-2">
-                  <input
-                    type="text"
-                    value={testState.webhookUrl || ''}
-                    readOnly
-                    className="flex-1 bg-gray-900 border border-gray-700 rounded px-3 py-2 text-white font-mono text-sm"
-                  />
-                  <button
-                    onClick={handleCopyWebhookUrl}
-                    className="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded transition-colors"
-                  >
-                    {copySuccess ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  </button>
+                  <CheckCircle className="w-4 h-4 text-green-400" />
+                  <span className="text-sm font-medium text-gray-300">Sample Payload Captured</span>
                 </div>
-              </div>
-
-              <div className="bg-blue-500/10 border border-blue-500/20 rounded-lg p-4">
-                <p className="text-blue-400 text-sm">
-                  📡 Send a POST request to the above URL with your test payload. 
-                  The webhook will automatically capture the data.
-                </p>
-                <p className="text-gray-400 text-xs mt-2">
-                  Test URL expires in 5 minutes: {testState.expiresAt ? new Date(testState.expiresAt).toLocaleTimeString() : ''}
-                </p>
-              </div>
-
-              <div className="text-center">
                 <button
-                  onClick={handleCancelTest}
-                  className="text-gray-400 hover:text-white px-4 py-2"
+                  onClick={() => setConfig({ ...config, samplePayload: undefined })}
+                  className="text-gray-400 hover:text-red-400 transition-colors"
+                  title="Clear sample payload"
                 >
-                  Cancel Test
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <pre className="bg-gray-900 border border-gray-700 rounded p-3 text-sm text-gray-300 overflow-auto max-h-32">
+                {JSON.stringify(config.samplePayload, null, 2)}
+              </pre>
+              <p className="text-xs text-gray-500 mt-2">
+                This sample payload will be used for data mapping in other nodes.
+              </p>
+              <div className="flex gap-2 mt-3">
+                <button
+                  onClick={() => handleCopy(JSON.stringify(config.samplePayload, null, 2), 'Sample Payload')}
+                  className="text-xs bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded transition-colors"
+                >
+                  {copiedField === 'Sample Payload' ? 'Copied!' : 'Copy JSON'}
                 </button>
               </div>
             </div>
           )}
-
-          {testState.state === 'captured' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center text-green-400">
-                <CheckCircle className="w-5 h-5 mr-2" />
-                <span>Payload Captured Successfully!</span>
-              </div>
-
-              <div className="bg-gray-800 border border-gray-600 rounded-lg p-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">
-                  Captured Payload
-                </label>
-                <pre className="bg-gray-900 border border-gray-700 rounded p-3 text-sm text-gray-300 overflow-auto max-h-64">
-                  {JSON.stringify(testState.samplePayload, null, 2)}
-                </pre>
-              </div>
-
-              <div className="flex gap-3 justify-center">
-                <button
-                  onClick={handleUseSample}
-                  className="bg-[#4DE0F9] text-black px-4 py-2 rounded font-medium hover:bg-[#4DE0F9]/90 transition-colors"
-                >
-                  Use This Sample
-                </button>
-                <button
-                  onClick={() => setTestState({ state: 'idle' })}
-                  className="text-gray-400 hover:text-white px-4 py-2"
-                >
-                  Test Again
-                </button>
-              </div>
-            </div>
-          )}
-
-          {testState.state === 'error' && (
-            <div className="space-y-4">
-              <div className="flex items-center justify-center text-red-400">
-                <AlertCircle className="w-5 h-5 mr-2" />
-                <span>Test Failed</span>
-              </div>
-
-              <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-4">
-                <p className="text-red-400 text-sm">
-                  {testState.error || 'Unknown error occurred'}
-                </p>
-              </div>
-
-              <div className="text-center">
-                <button
-                  onClick={() => setTestState({ state: 'idle' })}
-                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded transition-colors"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
-          )}
+        </div>
+      ) : (
+        <div className="text-center py-8">
+          <div className="w-16 h-16 bg-gray-700 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Zap className="w-8 h-8 text-gray-400" />
+          </div>
+          <p className="text-gray-400">
+            {isLoading ? 'Loading webhook information...' : 'Webhook will be created when workflow is activated'}
+          </p>
         </div>
       )}
     </div>
@@ -647,96 +578,263 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
     </div>
   );
 
-  const renderScheduleTrigger = () => (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-3">
-        <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
-          <Clock className="w-5 h-5 text-purple-400" />
+  const renderScheduleTrigger = () => {
+    const frequency = config.scheduleFrequency || 'hour';
+    const details = config.scheduleDetails || {};
+
+    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 
+                       'July', 'August', 'September', 'October', 'November', 'December'];
+
+    const renderDetailPicker = () => {
+      switch (frequency) {
+        case 'minute':
+          return (
+            <p className="text-sm text-gray-400 bg-gray-800/50 rounded p-3">
+              Workflow will run every minute
+            </p>
+          );
+          
+        case 'hour':
+          return (
+            <div>
+              <label className="block text-sm font-medium text-gray-300 mb-2">At minute</label>
+              <select
+                value={details.minute || 0}
+                onChange={(e) => handleScheduleChange(frequency, { ...details, minute: parseInt(e.target.value) })}
+                className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+              >
+                {Array.from({ length: 60 }, (_, i) => (
+                  <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                ))}
+              </select>
+              <p className="text-xs text-gray-400 mt-1">
+                Example: Hour at minute {(details.minute || 0).toString().padStart(2, '0')} (runs every hour at {(details.minute || 0).toString().padStart(2, '0')}:00)
+              </p>
+            </div>
+          );
+          
+        case 'day':
+          return (
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Hour</label>
+                <select
+                  value={details.hour || 9}
+                  onChange={(e) => handleScheduleChange(frequency, { ...details, hour: parseInt(e.target.value) })}
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+                >
+                  {Array.from({ length: 24 }, (_, i) => (
+                    <option key={i} value={i}>{i.toString().padStart(2, '0')}:00</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Minute</label>
+                <select
+                  value={details.minute || 0}
+                  onChange={(e) => handleScheduleChange(frequency, { ...details, minute: parseInt(e.target.value) })}
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+                >
+                  {Array.from({ length: 60 }, (_, i) => (
+                    <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-span-2">
+                <p className="text-xs text-gray-400">
+                  Example: Daily at {(details.hour || 9).toString().padStart(2, '0')}:{(details.minute || 0).toString().padStart(2, '0')}
+                </p>
+              </div>
+            </div>
+          );
+          
+        case 'week':
+          return (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Day of week</label>
+                <select
+                  value={details.dayOfWeek || 1}
+                  onChange={(e) => handleScheduleChange(frequency, { ...details, dayOfWeek: parseInt(e.target.value) })}
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+                >
+                  {dayNames.map((day, index) => (
+                    <option key={index} value={index}>{day}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Hour</label>
+                  <select
+                    value={details.hour || 9}
+                    onChange={(e) => handleScheduleChange(frequency, { ...details, hour: parseInt(e.target.value) })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>{i.toString().padStart(2, '0')}:00</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Minute</label>
+                  <select
+                    value={details.minute || 0}
+                    onChange={(e) => handleScheduleChange(frequency, { ...details, minute: parseInt(e.target.value) })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+                  >
+                    {Array.from({ length: 60 }, (_, i) => (
+                      <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">
+                Example: Weekly on {dayNames[details.dayOfWeek || 1]} at {(details.hour || 9).toString().padStart(2, '0')}:{(details.minute || 0).toString().padStart(2, '0')}
+              </p>
+            </div>
+          );
+          
+        case 'month':
+          return (
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Day of month</label>
+                <select
+                  value={details.dayOfMonth || 1}
+                  onChange={(e) => handleScheduleChange(frequency, { ...details, dayOfMonth: parseInt(e.target.value) })}
+                  className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+                >
+                  {Array.from({ length: 31 }, (_, i) => (
+                    <option key={i + 1} value={i + 1}>{i + 1}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Hour</label>
+                  <select
+                    value={details.hour || 9}
+                    onChange={(e) => handleScheduleChange(frequency, { ...details, hour: parseInt(e.target.value) })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>{i.toString().padStart(2, '0')}:00</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-300 mb-2">Minute</label>
+                  <select
+                    value={details.minute || 0}
+                    onChange={(e) => handleScheduleChange(frequency, { ...details, minute: parseInt(e.target.value) })}
+                    className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+                  >
+                    {Array.from({ length: 60 }, (_, i) => (
+                      <option key={i} value={i}>{i.toString().padStart(2, '0')}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <p className="text-xs text-gray-400">
+                Example: Monthly on day {details.dayOfMonth || 1} at {(details.hour || 9).toString().padStart(2, '0')}:{(details.minute || 0).toString().padStart(2, '0')}
+              </p>
+            </div>
+          );
+          
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center space-x-3">
+          <div className="w-10 h-10 bg-purple-500/20 rounded-lg flex items-center justify-center">
+            <Clock className="w-5 h-5 text-purple-400" />
+          </div>
+          <div>
+            <h3 className="text-lg font-medium text-white">Schedule Trigger</h3>
+            <p className="text-sm text-gray-400">Run this workflow on a schedule</p>
+          </div>
         </div>
+
+        {/* Frequency Selector */}
         <div>
-          <h3 className="text-lg font-medium text-white">Schedule Trigger</h3>
-          <p className="text-sm text-gray-400">Run this workflow on a schedule</p>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Run Every</label>
+          <select
+            value={frequency}
+            onChange={(e) => handleScheduleChange(e.target.value, {})}
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+          >
+            <option value="minute">Minute</option>
+            <option value="hour">Hour</option>
+            <option value="day">Day</option>
+            <option value="week">Week</option>
+            <option value="month">Month</option>
+          </select>
         </div>
-      </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Cron Expression</label>
-        <input
-          type="text"
-          value={config.cron || ''}
-          onChange={(e) => handleCronChange(e.target.value)}
-          placeholder="*/10 * * * *"
-          className={`w-full bg-gray-800 border rounded px-3 py-2 text-white font-mono ${
-            cronError ? 'border-red-500' : 'border-gray-600'
-          }`}
-        />
-        {cronError && (
-          <p className="text-red-400 text-sm mt-1">{cronError}</p>
-        )}
-        {cronDescription && (
-          <p className="text-green-400 text-sm mt-1">{cronDescription}</p>
-        )}
-      </div>
+        {/* Detail Picker */}
+        {renderDetailPicker()}
 
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
-        <input
-          type="text"
-          value={config.description || ''}
-          onChange={(e) => setConfig((prev: TriggerConfig) => ({ ...prev, description: e.target.value }))}
-          placeholder="e.g., Daily report generation"
-          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-300 mb-2">Timezone</label>
-        <select
-          value={config.timezone || 'UTC'}
-          onChange={(e) => setConfig((prev: TriggerConfig) => ({ ...prev, timezone: e.target.value }))}
-          className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
-        >
-          <option value="UTC">UTC</option>
-          <option value="America/New_York">Eastern Time</option>
-          <option value="America/Chicago">Central Time</option>
-          <option value="America/Denver">Mountain Time</option>
-          <option value="America/Los_Angeles">Pacific Time</option>
-          <option value="Europe/London">London</option>
-          <option value="Europe/Paris">Paris</option>
-          <option value="Asia/Tokyo">Tokyo</option>
-        </select>
-      </div>
-
-      <div className="bg-gray-800/50 rounded-lg p-4">
-        <div className="flex items-center space-x-2 mb-2">
-          <Clock className="w-4 h-4 text-purple-400" />
-          <span className="text-sm font-medium text-gray-300">Common Examples</span>
-        </div>
-        <div className="space-y-1 text-sm text-gray-400">
-          <div className="flex justify-between">
-            <span>Every minute:</span>
-            <code className="text-purple-400">* * * * *</code>
+        {/* Generated Cron & Description */}
+        <div className="bg-gray-800/50 rounded-lg p-4">
+          <div className="flex items-center space-x-2 mb-2">
+            <Clock className="w-4 h-4 text-purple-400" />
+            <span className="text-sm font-medium text-gray-300">Generated Schedule</span>
           </div>
-          <div className="flex justify-between">
-            <span>Every 5 minutes:</span>
-            <code className="text-purple-400">*/5 * * * *</code>
-          </div>
-          <div className="flex justify-between">
-            <span>Hourly:</span>
-            <code className="text-purple-400">0 * * * *</code>
-          </div>
-          <div className="flex justify-between">
-            <span>Daily at 9 AM:</span>
-            <code className="text-purple-400">0 9 * * *</code>
-          </div>
-          <div className="flex justify-between">
-            <span>Weekly (Monday 9 AM):</span>
-            <code className="text-purple-400">0 9 * * 1</code>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-gray-400">Cron Expression:</span>
+              <code className="text-purple-400 bg-gray-900 px-2 py-1 rounded font-mono">{config.cron}</code>
+            </div>
+            {cronDescription && (
+              <div className="text-green-400">
+                <strong>Schedule:</strong> {cronDescription}
+              </div>
+            )}
+            {cronError && (
+              <div className="text-red-400">
+                <strong>Error:</strong> {cronError}
+              </div>
+            )}
           </div>
         </div>
+
+        {/* Optional Fields */}
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Description (Optional)</label>
+          <TemplateInput
+            value={config.description || ''}
+            onChange={(value) => setConfig((prev: TriggerConfig) => ({ ...prev, description: value }))}
+            placeholder="e.g., Daily report generation for {{ctx.trigger.department}}"
+            className="w-full"
+            dataSources={{}}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-300 mb-2">Timezone</label>
+          <select
+            value={config.timezone || 'UTC'}
+            onChange={(e) => setConfig((prev: TriggerConfig) => ({ ...prev, timezone: e.target.value }))}
+            className="w-full bg-gray-800 border border-gray-600 rounded px-3 py-2 text-white"
+          >
+            <option value="UTC">UTC</option>
+            <option value="America/New_York">Eastern Time</option>
+            <option value="America/Chicago">Central Time</option>
+            <option value="America/Denver">Mountain Time</option>
+            <option value="America/Los_Angeles">Pacific Time</option>
+            <option value="Europe/London">London</option>
+            <option value="Europe/Paris">Paris</option>
+            <option value="Asia/Tokyo">Tokyo</option>
+          </select>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderContent = () => {
     if (!node) return null;
@@ -767,14 +865,14 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4"
+        className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4"
         onClick={(e) => e.target === e.currentTarget && onClose()}
       >
         <motion.div
           initial={{ scale: 0.95, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           exit={{ scale: 0.95, opacity: 0 }}
-          className="bg-gray-900 rounded-xl border border-gray-700 w-full max-w-2xl max-h-[90vh] overflow-hidden"
+          className="bg-gray-900 rounded-xl border border-gray-700 w-full max-w-6xl max-h-[90vh] overflow-hidden"
         >
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-700">
@@ -790,9 +888,169 @@ const NewTriggerConfigModal: React.FC<NewTriggerConfigModalProps> = ({
             </button>
           </div>
 
-          {/* Content */}
-          <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
-            {renderContent()}
+          {/* Content - Split into two columns */}
+          <div className="flex h-[calc(90vh-200px)]">
+            {/* Left Column - Configuration */}
+            <div className="flex-1 p-6 border-r border-gray-700 overflow-y-auto">
+              <h3 className="text-lg font-medium text-white mb-4">Configuration</h3>
+              {renderContent()}
+            </div>
+
+            {/* Right Column - Test and Inputs */}
+            <div className="flex-1 p-6 overflow-y-auto">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-medium text-white">Test & Sample Data</h3>
+                {node?.data?.actionKind === 'webhook-trigger' && (
+                  <button
+                    onClick={handleTestWebhook}
+                    disabled={isLoading || testState.state === 'waiting'}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 text-white rounded-lg transition-colors"
+                  >
+                    {testState.state === 'waiting' ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        <span>Waiting for Request...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-4 h-4" />
+                        <span>Test Step</span>
+                      </>
+                    )}
+                  </button>
+                )}
+                {node?.data?.actionKind === 'manual-trigger' && (
+                  <button
+                    onClick={() => {
+                      if (workflowId) {
+                        runWorkflow(workflowId, {});
+                        toast.success('Workflow started manually');
+                      }
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                  >
+                    <Play className="w-4 h-4" />
+                    <span>Test Step</span>
+                  </button>
+                )}
+                {node?.data?.actionKind === 'schedule-trigger' && (
+                  <button
+                    onClick={() => {
+                      if (workflowId) {
+                        runWorkflow(workflowId, {});
+                        toast.success('Workflow started manually (simulating schedule)');
+                      }
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+                  >
+                    <Play className="w-4 h-4" />
+                    <span>Test Step</span>
+                  </button>
+                )}
+              </div>
+
+              {/* Test Status and Results */}
+              {node?.data?.actionKind === 'webhook-trigger' && (
+                <div className="space-y-4">
+                  {/* Webhook URL Info */}
+                  {webhookInfo?.url && (
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-medium text-gray-300">Webhook URL</span>
+                        <button
+                          onClick={() => handleCopy(webhookInfo.url, 'URL')}
+                          className="text-blue-400 hover:text-blue-300"
+                        >
+                          {copiedField === 'URL' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <code className="text-xs text-green-400 break-all">{webhookInfo.url}</code>
+                    </div>
+                  )}
+
+                  {/* Test Status */}
+                  {testState.state !== 'idle' && (
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      {testState.state === 'waiting' && (
+                        <div className="flex items-center space-x-3">
+                          <RefreshCw className="w-5 h-5 text-blue-400 animate-spin" />
+                          <div>
+                            <p className="text-white font-medium">Waiting for webhook...</p>
+                            <p className="text-gray-400 text-sm">Send a request to the URL above</p>
+                          </div>
+                        </div>
+                      )}
+                      {testState.state === 'captured' && (
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-5 h-5 text-green-400" />
+                            <p className="text-white font-medium">Webhook captured!</p>
+                          </div>
+                          <button
+                            onClick={handleUseSample}
+                            className="w-full px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+                          >
+                            Use Sample Data
+                          </button>
+                        </div>
+                      )}
+                      {testState.state === 'error' && (
+                        <div className="flex items-center space-x-3">
+                          <AlertCircle className="w-5 h-5 text-red-400" />
+                          <div>
+                            <p className="text-white font-medium">Test failed</p>
+                            <p className="text-red-400 text-sm">{testState.error}</p>
+                          </div>
+                        </div>
+                      )}
+                      {testState.state === 'waiting' && (
+                        <button
+                          onClick={handleCancelTest}
+                          className="mt-3 px-4 py-2 text-gray-400 hover:text-white border border-gray-600 rounded-lg transition-colors"
+                        >
+                          Cancel Test
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Sample Data Display */}
+                  {(testState.samplePayload || config.samplePayload) && (
+                    <div className="bg-gray-800/50 rounded-lg p-4">
+                      <h4 className="text-sm font-medium text-gray-300 mb-2">Sample Payload</h4>
+                      <pre className="text-xs text-green-400 bg-gray-900 rounded p-3 overflow-auto max-h-64">
+                        {JSON.stringify(testState.samplePayload || config.samplePayload, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* For manual and schedule triggers, show sample input options */}
+              {(node?.data?.actionKind === 'manual-trigger' || node?.data?.actionKind === 'schedule-trigger') && (
+                <div className="space-y-4">
+                  <div className="bg-gray-800/50 rounded-lg p-4">
+                    <h4 className="text-sm font-medium text-gray-300 mb-2">Sample Test Data</h4>
+                    <textarea
+                      value={JSON.stringify(config.samplePayload || {}, null, 2)}
+                      onChange={(e) => {
+                        try {
+                          const parsed = JSON.parse(e.target.value);
+                          setConfig((prev: TriggerConfig) => ({ ...prev, samplePayload: parsed }));
+                        } catch (error) {
+                          // Keep the raw text for editing
+                        }
+                      }}
+                      placeholder='{\n  "key": "value",\n  "data": "sample"\n}'
+                      className="w-full h-32 bg-gray-900 border border-gray-600 rounded px-3 py-2 text-green-400 font-mono text-xs"
+                    />
+                    <p className="text-xs text-gray-400 mt-2">
+                      This data will be passed to the workflow when testing
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Footer */}

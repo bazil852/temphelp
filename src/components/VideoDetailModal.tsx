@@ -167,19 +167,19 @@ export default function VideoDetailModal({ content, onClose, onAddCaption }: Vid
                       <Download className="h-5 w-5" />
                       <span>Download</span>
                     </a>
-                    <button
+                    {/* <button
                       onClick={() => content.video_url && onAddCaption(content.video_url)}
                       className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors"
                     >
                       <Subtitles className="h-5 w-5" />
                       <span>Add Captions</span>
-                    </button>
+                    </button> */}
                   </>
                 )}
-                <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors">
+                {/* <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors">
                   <Edit className="h-5 w-5" />
                   <span>Edit</span>
-                </button>
+                </button> */}
                 <button className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-white transition-colors">
                   <Trash2 className="h-5 w-5" />
                   <span>Delete</span>

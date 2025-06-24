@@ -133,7 +133,7 @@ export default function Layout({ hasPlan }: LayoutProps) {
       <FloatingSidebar />
 
       {/* Main Content */}
-      <main className="pl-[120px]">
+      <main className="pt-16 lg:pt-0 lg:pl-[120px]">
         <Outlet />
       </main>
 

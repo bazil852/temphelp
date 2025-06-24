@@ -106,9 +106,12 @@ function DashboardPage() {
     id: string;
     type: 'influencer';
     title: string;
+    thumbnail: string;
     avatar: string;
     status: string;
   }>>([]);
+  const [isLoadingVideos, setIsLoadingVideos] = useState(true);
+  const [isLoadingInfluencers, setIsLoadingInfluencers] = useState(true);
   
   const statusSteps = [
     { key: 'pending', label: 'Processing' },
@@ -138,9 +141,9 @@ function DashboardPage() {
 
   useEffect(() => {
     // Filter influencers
-    const pending = influencers.filter(inf => ['pending', 'motion-training', 'pending-motion'].includes(inf.status) && !inf.look_id);
+    const pending = influencers.filter(inf => inf.status && ['pending', 'motion-training', 'pending-motion'].includes(inf.status) && !inf.look_id);
     const available = influencers.filter(inf => 
-      (!inf.status || inf.status == 'completed' ) && !inf.look_id
+      (!inf.status || inf.status === 'completed' ) && !inf.look_id
     );
 
     // Fetch clones
@@ -212,7 +215,8 @@ function DashboardPage() {
   useEffect(() => {
     const fetchRecentVideos = async () => {
       if (!currentUser?.id) return;
-
+      
+      setIsLoadingVideos(true);
       try {
         // First get all influencers for the current user
         const { data: influencers, error: influencersError } = await supabase
@@ -247,6 +251,8 @@ function DashboardPage() {
         setRecentVideos(transformedVideos);
       } catch (error) {
         console.error('Error fetching recent videos:', error);
+      } finally {
+        setIsLoadingVideos(false);
       }
     };
 
@@ -257,7 +263,8 @@ function DashboardPage() {
   useEffect(() => {
     const fetchTopInfluencers = async () => {
       if (!currentUser?.id) return;
-
+      
+      setIsLoadingInfluencers(true);
       try {
         // Get all influencers for the current user
         const { data: influencers, error: influencersError } = await supabase
@@ -293,6 +300,7 @@ function DashboardPage() {
             id: inf.id,
             type: 'influencer' as const,
             title: inf.name,
+            thumbnail: inf.preview_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
             avatar: inf.preview_url || 'https://images.unsplash.com/photo-1494790108377-be9c29b29330',
             status: inf.status === 'completed' ? 'Ready' : 'Setup Pending'
           }));
@@ -300,6 +308,8 @@ function DashboardPage() {
         setTopInfluencers(sortedInfluencers);
       } catch (error) {
         console.error('Error fetching top influencers:', error);
+      } finally {
+        setIsLoadingInfluencers(false);
       }
     };
 
@@ -396,7 +406,7 @@ function DashboardPage() {
             activeTriggers={activeTriggers}
             recentTriggers={recentTriggers}
           />
-          <ProcessingQueueWidget items={processingItems} />
+          <ProcessingQueueWidget />
           </div>
 
       {isModalOpen && (
@@ -422,11 +432,13 @@ function DashboardPage() {
             title="Recent Videos"
             items={recentVideos}
             type="video"
+            isLoading={isLoadingVideos}
           />
           <FeaturedContentRow
             title="Top AI Influencers"
             items={topInfluencers}
             type="influencer"
+            isLoading={isLoadingInfluencers}
           />
         </div>
       </div>

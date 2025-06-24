@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Users, Loader2, Grid, LayoutGrid, List, Columns, Rows, Layout, CheckCircle2, Clock, Copy } from 'lucide-react';
+import { Plus, Users, Loader2, Grid, LayoutGrid, List, Columns, Rows, Layout, CheckCircle2, Clock, Copy, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { InfluencerCard } from '../components/InfluencerCard';
 import { CloneCard } from '../components/CloneCard';
@@ -43,6 +43,7 @@ function InfluencersPage() {
   const [activeTab, setActiveTab] = useState<'available' | 'pending' | 'clones'>('available');
   const [gridCols, setGridCols] = useState(4);
   const [showGridDropdown, setShowGridDropdown] = useState(false);
+  const [showTabDropdown, setShowTabDropdown] = useState(false);
   const [tabs, setTabs] = useState<Tab[]>(initialTabs);
   const [filteredInfluencers, setFilteredInfluencers] = useState<{
     pending: Influencer[];
@@ -146,7 +147,8 @@ function InfluencersPage() {
 
         {/* Tabs */}
         <div className="flex items-center justify-between">
-          <div className="flex gap-2 p-1 bg-white/5 backdrop-blur-md rounded-xl border border-white/10">
+          {/* Desktop Tabs */}
+          <div className="hidden md:flex gap-2 p-1 bg-white/5 backdrop-blur-md rounded-xl border border-white/10">
             {tabs.map((tab) => (
               <button
                 key={tab.key}
@@ -164,6 +166,62 @@ function InfluencersPage() {
                 </span>
               </button>
             ))}
+          </div>
+
+          {/* Mobile Dropdown */}
+          <div className="md:hidden relative">
+            <button
+              onClick={() => setShowTabDropdown(!showTabDropdown)}
+              className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white border border-white/10 rounded-xl shadow-lg transition-all duration-200 min-w-[160px]"
+            >
+              {(() => {
+                const currentTab = tabs.find(tab => tab.key === activeTab);
+                if (!currentTab) return null;
+                const IconComponent = currentTab.icon;
+                return (
+                  <>
+                    <IconComponent className="w-4 h-4" />
+                    <span className="text-sm font-medium">{currentTab.label}</span>
+                    <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full ml-auto">
+                      {currentTab.count}
+                    </span>
+                    <ChevronDown className="w-4 h-4 ml-1" />
+                  </>
+                );
+              })()}
+            </button>
+            
+            <AnimatePresence>
+              {showTabDropdown && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="absolute left-0 top-full mt-2 w-full bg-[#1a1a1a] rounded-lg shadow-xl border border-white/10 overflow-hidden z-50"
+                >
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.key}
+                      onClick={() => {
+                        setActiveTab(tab.key);
+                        setShowTabDropdown(false);
+                      }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 text-sm transition-colors ${
+                        activeTab === tab.key
+                          ? 'bg-cyan-500/20 text-cyan-500'
+                          : 'text-gray-400 hover:text-white hover:bg-white/5'
+                      }`}
+                    >
+                      <tab.icon className="w-4 h-4" />
+                      <span className="flex-1 text-left">{tab.label}</span>
+                      <span className="text-xs bg-white/10 px-2 py-0.5 rounded-full">
+                        {tab.count}
+                      </span>
+                    </button>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* Grid Layout Selector */}
