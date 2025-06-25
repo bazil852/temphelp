@@ -201,23 +201,7 @@ function App() {
               </ProtectedRoute>
             }
           />
-          <Route
-            path="automation-builder/:id"
-            element={
-              <ProtectedRoute>
-                <AutomationBuilderEditorPage />
-              </ProtectedRoute>
-            }
-          />
           <Route path="/update-plan" element={<UpdatePlan />} />
-          <Route
-            path="create-ai-clone"
-            element={
-              <ProtectedRoute>
-                <CreateAiClonePage />
-              </ProtectedRoute>
-            }
-          />
           <Route
             path="podcast-studio"
             element={
@@ -236,12 +220,12 @@ function App() {
           />
         </Route>
 
-        {/* API docs route without Layout */}
+        {/* Automation Builder Editor - Full screen without main sidebar */}
         <Route
-          path="/api-docs"
+          path="/automation-builder/:id"
           element={
             <ProtectedRoute>
-              <ApiDocsPage />
+              <AutomationBuilderEditorPage />
             </ProtectedRoute>
           }
         />

@@ -14,6 +14,108 @@ interface SimpleWorkflowEditorProps {
   onNodeClick?: (node: any) => void;
 }
 
+// Helper function to get node icon based on action kind
+const getNodeIcon = (actionKind: string): string => {
+  const iconMap: Record<string, string> = {
+    'webhook-trigger': '🌐',
+    'manual-trigger': '👆',
+    'schedule-trigger': '⏰',
+    'filter': '🔍',
+    'switch': '🔀',
+    'wait': '⏱️',
+    'merge': '🔄',
+    'js': '⚡',
+    'http': '🌐',
+    'generate-video': '🎬',
+    'ai-processing': '🤖',
+  };
+  return iconMap[actionKind] || '⚙️';
+};
+
+// Draggable component replacement (simple wrapper)
+interface DraggableProps {
+  children: React.ReactNode;
+  position: { x: number; y: number };
+  onStart: () => boolean;
+  onDrag: (e: React.MouseEvent, data: { x: number; y: number }) => void;
+  onStop: (e: React.MouseEvent, data: { x: number; y: number }) => void;
+}
+
+const Draggable: React.FC<DraggableProps> = ({ children, position, onStart, onDrag, onStop }) => {
+  const [isDragging, setIsDragging] = React.useState(false);
+  const [startPos, setStartPos] = React.useState({ x: 0, y: 0 });
+  const [currentPos, setCurrentPos] = React.useState(position);
+  const [dragStarted, setDragStarted] = React.useState(false);
+  const [mouseStartPos, setMouseStartPos] = React.useState({ x: 0, y: 0 });
+
+  React.useEffect(() => {
+    setCurrentPos(position);
+  }, [position]);
+
+  React.useEffect(() => {
+    const handleGlobalMouseMove = (e: MouseEvent) => {
+      if (isDragging) {
+        e.preventDefault();
+        const newPos = { x: e.clientX - startPos.x, y: e.clientY - startPos.y };
+        setCurrentPos(newPos);
+        onDrag(e as any, newPos);
+        
+        // If we moved more than 5px, consider it a drag
+        const distanceMoved = Math.sqrt(
+          Math.pow(e.clientX - mouseStartPos.x, 2) + 
+          Math.pow(e.clientY - mouseStartPos.y, 2)
+        );
+        if (distanceMoved > 5) {
+          setDragStarted(true);
+        }
+      }
+    };
+
+    const handleGlobalMouseUp = (e: MouseEvent) => {
+      if (isDragging) {
+        setIsDragging(false);
+        onStop(e as any, currentPos);
+        
+        // Reset drag started state after a short delay
+        setTimeout(() => setDragStarted(false), 100);
+      }
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.body.style.cursor = 'grabbing';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.body.style.cursor = '';
+    };
+  }, [isDragging, startPos, currentPos, onDrag, onStop, mouseStartPos]);
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (onStart()) {
+      setIsDragging(true);
+      setDragStarted(false);
+      setStartPos({ x: e.clientX - currentPos.x, y: e.clientY - currentPos.y });
+      setMouseStartPos({ x: e.clientX, y: e.clientY });
+      e.stopPropagation();
+      e.preventDefault();
+    }
+  };
+
+  return (
+    <div
+      style={{ position: 'absolute', left: currentPos.x, top: currentPos.y }}
+      onMouseDown={handleMouseDown}
+      data-drag-started={dragStarted}
+    >
+      {children}
+    </div>
+  );
+};
+
 const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({ 
   workflow, 
   availableActions, 
@@ -71,7 +173,7 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
   const [isTouchPanning, setIsTouchPanning] = React.useState(false);
   
   // Sidebar collapse state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = React.useState(true);
   
   // Canvas transform save timeout
   const canvasTransformTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
@@ -459,9 +561,6 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
   };
 
   const handleCanvasMouseMove = (event: React.MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    
     if (isPanning) {
       setCanvasTransform(prev => ({
         ...prev,
@@ -567,33 +666,11 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
   };
 
   return (
-    <div 
-      className="flex h-full bg-transparent"
-      onSubmit={(e) => {
-        console.log('🚨 FORM SUBMISSION DETECTED in SimpleWorkflowEditor!');
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }}
-      onReset={(e) => {
-        console.log('🚨 FORM RESET DETECTED in SimpleWorkflowEditor!');
-        e.preventDefault();
-        e.stopPropagation();
-        return false;
-      }}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' && (e.target as HTMLElement).tagName !== 'TEXTAREA') {
-          console.log('🚨 ENTER KEY PREVENTED in SimpleWorkflowEditor on element:', (e.target as HTMLElement).tagName);
-          e.preventDefault();
-          e.stopPropagation();
-          return false;
-        }
-      }}
-    >
-      {/* Canvas */}
+    <div className="relative w-full h-full bg-gray-900 overflow-hidden">
+      {/* Full-screen Canvas */}
       <div 
         ref={canvasRef}
-        className="flex-1 relative bg-transparent min-h-[600px] border-r border-gray-700/50 canvas-container select-none"
+        className="w-full h-full relative bg-gray-900"
         onMouseDown={handleCanvasMouseDown}
         onMouseMove={handleCanvasMouseMove}
         onMouseUp={handleCanvasMouseUp}
@@ -604,9 +681,10 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
         style={{ 
           userSelect: 'none',
           cursor: (isPanning || isTouchPanning) ? 'grabbing' : isConnecting ? 'crosshair' : 'grab',
-          touchAction: 'none' // Prevent default touch behaviors
+          touchAction: 'none'
         }}
       >
+        {/* Grid Background */}
         <motion.div 
           className="absolute inset-0 bg-transparent"
           style={{
@@ -629,296 +707,129 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
           }}
         />
         
-          {/* Canvas Controls - Fixed position, not transformed */}
-          <div className="absolute top-4 right-4 flex flex-col gap-2" style={{ zIndex: 500 }}>
-            {/* Minimap */}
-            {nodes.length > 1 && (
-              <div className="glass-panel p-2 w-32 h-20 relative overflow-hidden">
-                <div className="text-xs text-gray-400 mb-1">Minimap</div>
-                <div className="relative w-full h-full bg-gray-900/50 rounded">
-                  {/* Viewport indicator */}
-                  <div 
-                    className="absolute border border-[#4DE0F9] bg-[#4DE0F9]/10"
-                    style={{
-                      left: `${Math.max(0, Math.min(80, -canvasTransform.x / 10))}px`,
-                      top: `${Math.max(0, Math.min(40, -canvasTransform.y / 10))}px`,
-                      width: `${Math.min(80, 80 / canvasTransform.scale)}px`,
-                      height: `${Math.min(40, 40 / canvasTransform.scale)}px`
-                    }}
-                  />
-                  {/* Node indicators */}
-                  {nodes.filter(node => node.id !== 'start').map(node => (
-                    <div
-                      key={node.id}
-                      className="absolute w-1 h-1 bg-[#4DE0F9] rounded-full"
-                      style={{
-                        left: `${Math.max(0, Math.min(80, node.position.x / 20))}px`,
-                        top: `${Math.max(0, Math.min(40, node.position.y / 20))}px`
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            <div className="glass-panel p-2 flex flex-col gap-1">
-              <button
-                type="button"
-                onClick={() => {
-                  // Zoom towards center of canvas
-                  if (canvasRef.current) {
-                    const rect = canvasRef.current.getBoundingClientRect();
-                    const centerX = rect.left + rect.width / 2;
-                    const centerY = rect.top + rect.height / 2;
-                    handleZoom(0.1, { x: centerX, y: centerY });
-                  } else {
-                    handleZoom(0.1);
-                  }
-                }}
-                className="p-2 text-gray-300 hover:text-[#4DE0F9] hover:bg-[#4DE0F9]/10 rounded transition-colors"
-                title="Zoom In (Ctrl/Cmd + +)"
-              >
-                <ZoomIn className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  // Zoom towards center of canvas
-                  if (canvasRef.current) {
-                    const rect = canvasRef.current.getBoundingClientRect();
-                    const centerX = rect.left + rect.width / 2;
-                    const centerY = rect.top + rect.height / 2;
-                    handleZoom(-0.1, { x: centerX, y: centerY });
-                  } else {
-                    handleZoom(-0.1);
-                  }
-                }}
-                className="p-2 text-gray-300 hover:text-[#4DE0F9] hover:bg-[#4DE0F9]/10 rounded transition-colors"
-                title="Zoom Out (Ctrl/Cmd + -)"
-              >
-                <ZoomOut className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={fitToScreen}
-                className="p-2 text-gray-300 hover:text-[#4DE0F9] hover:bg-[#4DE0F9]/10 rounded transition-colors"
-                title="Fit to Screen (F)"
-              >
-                <Maximize2 className="w-4 h-4" />
-              </button>
-              <button
-                type="button"
-                onClick={resetCanvasView}
-                className="p-2 text-gray-300 hover:text-[#4DE0F9] hover:bg-[#4DE0F9]/10 rounded transition-colors"
-                title="Reset View (Ctrl/Cmd + 0)"
-              >
-                <RotateCcw className="w-4 h-4" />
-              </button>
+        {/* Canvas Status Bar - Minimal */}
+        <div 
+          className="absolute top-20 left-4 bg-black/50 text-white px-3 py-1 rounded text-xs pointer-events-none z-50" 
+        >
+          {Math.round(canvasTransform.scale * 100)}% | {nodes.filter(n => n.id !== 'start').length} nodes | {connections.length} connections
             </div>
             
-            {/* Zoom indicator */}
-            <div className="glass-panel px-3 py-1 text-xs text-gray-300 text-center">
-              {Math.round(canvasTransform.scale * 100)}%
-            </div>
-          </div>
-
-          {/* Transformed container for nodes and canvas UI */}
-          <div 
-            className="absolute inset-0 p-4" 
+        {/* Transformed container for nodes */}
+        <div 
+          className="absolute inset-0" 
             style={{ 
-              zIndex: 100,
+              zIndex: 50,
               transform: `translate(${canvasTransform.x}px, ${canvasTransform.y}px) scale(${canvasTransform.scale})`,
               transformOrigin: '0 0'
             }}
           >
-          {/* Debug info - positioned to stay visible when zooming/panning */}
-          <div 
-            className="absolute bg-black/50 text-white p-2 rounded text-xs pointer-events-none" 
-            style={{ 
-              left: `${-canvasTransform.x / canvasTransform.scale + 20}px`,
-              top: `${-canvasTransform.y / canvasTransform.scale + 20}px`,
-              fontSize: `${Math.max(10, 12 / canvasTransform.scale)}px`,
-              zIndex: 500 
-            }}
+          {/* Connection lines */}
+          <svg 
+            className="absolute inset-0 pointer-events-none w-full h-full" 
+            style={{ zIndex: 250, overflow: 'visible' }}
           >
-            Nodes: {nodes.filter(n => n.id !== 'start').length} | Connections: {connections.length} | {
-              isConnecting ? '🔗 Connecting...' : 
-              isDragging ? '🔄 Dragging...' : 
-              (isPanning || isTouchPanning) ? '🤏 Panning...' : 
-              '✅ Ready'
-            }
-          </div>
-          
-          {/* Connection mode instructions - positioned to stay visible */}
-          {isConnecting && (
-            <div 
-              className="absolute bg-[#4DE0F9]/20 border border-[#4DE0F9]/50 text-white p-3 rounded backdrop-blur-sm pointer-events-none" 
-              style={{ 
-                left: `${-canvasTransform.x / canvasTransform.scale + 20}px`,
-                top: `${-canvasTransform.y / canvasTransform.scale + 60}px`,
-                fontSize: `${Math.max(12, 14 / canvasTransform.scale)}px`,
-                zIndex: 500 
-              }}
-            >
-              <div className="flex items-center mb-2">
-                <div 
-                  className="bg-[#4DE0F9] rounded-full mr-2 animate-pulse"
-                  style={{ 
-                    width: `${Math.max(6, 8 / canvasTransform.scale)}px`,
-                    height: `${Math.max(6, 8 / canvasTransform.scale)}px`
-                  }}
-                ></div>
-                Connection Mode Active
-              </div>
-              <p style={{ fontSize: `${Math.max(10, 12 / canvasTransform.scale)}px` }} className="text-gray-300">
-                Click on a cyan input dot to complete the connection
-              </p>
-            </div>
-          )}
-          
-          {/* Canvas instructions for empty state - positioned to stay visible */}
-          {nodes.length === 1 && (
-            <div 
-              className="absolute bg-black/60 text-white p-4 rounded-lg backdrop-blur-sm border border-gray-700 pointer-events-none" 
-              style={{ 
-                left: `${-canvasTransform.x / canvasTransform.scale + 300}px`,
-                top: `${-canvasTransform.y / canvasTransform.scale + 200}px`,
-                fontSize: `${Math.max(12, 14 / canvasTransform.scale)}px`,
-                zIndex: 500,
-                transform: 'translateX(-50%)'
-              }}
-            >
-              <div className="text-center">
-                <h3 className="font-semibold mb-2">🎯 Canvas Controls</h3>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <kbd 
-                      className="px-2 py-1 bg-gray-800 rounded"
-                      style={{ fontSize: `${Math.max(8, 10 / canvasTransform.scale)}px` }}
-                    >
-                      Pinch / Wheel
-                    </kbd>
-                    <p className="text-gray-300 mt-1" style={{ fontSize: `${Math.max(8, 10 / canvasTransform.scale)}px` }}>
-                      Zoom in/out
-                    </p>
-                  </div>
-                  <div>
-                    <kbd 
-                      className="px-2 py-1 bg-gray-800 rounded"
-                      style={{ fontSize: `${Math.max(8, 10 / canvasTransform.scale)}px` }}
-                    >
-                      Click & Drag
-                    </kbd>
-                    <p className="text-gray-300 mt-1" style={{ fontSize: `${Math.max(8, 10 / canvasTransform.scale)}px` }}>
-                      Pan canvas
-                    </p>
-                  </div>
-                  <div>
-                    <kbd 
-                      className="px-2 py-1 bg-gray-800 rounded"
-                      style={{ fontSize: `${Math.max(8, 10 / canvasTransform.scale)}px` }}
-                    >
-                      F
-                    </kbd>
-                    <p className="text-gray-300 mt-1" style={{ fontSize: `${Math.max(8, 10 / canvasTransform.scale)}px` }}>
-                      Fit to screen
-                    </p>
-                  </div>
-                  <div>
-                    <kbd 
-                      className="px-2 py-1 bg-gray-800 rounded"
-                      style={{ fontSize: `${Math.max(8, 10 / canvasTransform.scale)}px` }}
-                    >
-                      Ctrl/Cmd + 0
-                    </kbd>
-                    <p className="text-gray-300 mt-1" style={{ fontSize: `${Math.max(8, 10 / canvasTransform.scale)}px` }}>
-                      Reset view
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+            {/* Debug test line - always visible */}
+            <path
+              d="M 200 100 L 400 100"
+              stroke="#4DE0F9"
+              strokeWidth="3"
+              fill="none"
+              style={{ filter: 'drop-shadow(0 0 4px rgba(77, 224, 249, 0.5))' }}
+            />
+            
+            {connections.map((connection) => {
+              const sourceNode = nodes.find(n => n.id === connection.source);
+              const targetNode = nodes.find(n => n.id === connection.target);
+              
+              // Don't render connections involving the start node
+              if (!sourceNode || !targetNode || sourceNode.id === 'start' || targetNode.id === 'start') return null;
+              
+              // Calculate connection points based on actual connection dot positions
+              const nodeWidth = 160; // Approximate node width
+              const nodeHeight = 120; // Approximate node height with padding
+              const sourceX = sourceNode.position.x + nodeWidth + 8; // Right connection dot
+              const sourceY = sourceNode.position.y + nodeHeight / 2; // Center height
+              const targetX = targetNode.position.x - 8; // Left connection dot
+              const targetY = targetNode.position.y + nodeHeight / 2; // Center height
+              
+              // Create smooth cubic bezier curve
+              const controlX1 = sourceX + 80; // Control point for smooth curve
+              const controlX2 = targetX - 80;
+              const pathData = `M ${sourceX} ${sourceY} C ${controlX1} ${sourceY}, ${controlX2} ${targetY}, ${targetX} ${targetY}`;
+              
+              return (
+                <path
+                  key={connection.id}
+                  d={pathData}
+                  stroke="#4DE0F9"
+                  strokeWidth="3"
+                  fill="none"
+                  className="drop-shadow-lg"
+                  style={{ filter: 'drop-shadow(0 0 4px rgba(77, 224, 249, 0.5))' }}
+                />
+              );
+            })}
+            
+            {/* Active connection line */}
+            {isConnecting && connectionStart && (
+              <path
+                d={`M ${connectionStart.position.x} ${connectionStart.position.y} Q ${(connectionStart.position.x + mousePosition.x) / 2} ${connectionStart.position.y} ${mousePosition.x} ${mousePosition.y}`}
+                stroke="#4DE0F9"
+                strokeWidth="3"
+                fill="none"
+                strokeDasharray="8,4"
+                className="animate-pulse"
+                style={{ filter: 'drop-shadow(0 0 6px rgba(77, 224, 249, 0.8))' }}
+              />
+            )}
+          </svg>
 
-          {nodes.filter(node => node.id !== 'start').map((node, index) => (
-            <motion.div
+          {/* Nodes */}
+          {nodes.filter(node => node.id !== 'start').map((node) => (
+            <Draggable
               key={node.id}
-              initial={{ opacity: 0, scale: 0.8 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.1 }}
-              drag={!isConnecting && !isDragging && !isConnectionDragging}
-              dragMomentum={false}
-              dragElastic={0}
-              dragConstraints={false}
-              whileDrag={{ scale: 1.05, zIndex: 1000 }}
-              className="workflow-node absolute"
-              style={{ 
-                left: node.position.x, 
-                top: node.position.y,
-                zIndex: 200,
-                pointerEvents: 'auto',
-                                 cursor: (isConnecting || isConnectionDragging) ? 'default' : 'move'
+              position={node.position}
+              onStart={() => {
+                console.log('🎯 Node drag started');
+                return true;
               }}
-
-                              onDragStart={(event, info) => {
-                  // Check if the drag started from a connection point or we're in connection mode
-                  const target = event.target as HTMLElement;
-                  if (target.closest('.connection-point') || isConnecting || isConnectionDragging) {
-                    // Completely prevent dragging if it's from a connection point or in connecting mode
-                    return false;
-                  }
-                  
-                  event.preventDefault();
-                  event.stopPropagation();
-                  setIsDragging(true);
-                  return true;
-                }}
-              onDrag={(event, info) => {
-                event.preventDefault();
-                event.stopPropagation();
-                
-                // Use the delta from the drag to update position directly
-                const deltaX = info.delta.x / canvasTransform.scale;
-                const deltaY = info.delta.y / canvasTransform.scale;
+              onDrag={(e, data) => {
+                setIsDragging(true);
                 
                 const updatedNodes = nodes.map(n => 
                   n.id === node.id 
-                    ? { 
-                        ...n, 
-                        position: { 
-                          x: Math.max(0, n.position.x + deltaX),
-                          y: Math.max(0, n.position.y + deltaY)
-                        } 
-                      }
+                    ? { ...n, position: { x: data.x, y: data.y } }
                     : n
                 );
                 setNodes(updatedNodes);
-                // Don't call onChange during drag to prevent auto-save interruptions
+                console.log('🔄 Node position updated during drag');
               }}
-              onDragEnd={(event, info) => {
-                event.preventDefault();
-                event.stopPropagation();
-                setIsDragging(false);
-                
+              onStop={(e, data) => {
                 console.log('🎯 Node drag ended, calling onChange');
-                // The position is already updated in onDrag, just trigger save
                 onChange({ nodes, connections, canvasTransform });
+                
+                // Reset isDragging after a short delay to prevent immediate clicks
+                setTimeout(() => setIsDragging(false), 50);
               }}
             >
-                             <div 
-                 className="glass-panel relative min-w-[160px] p-4 rounded-lg border cursor-move select-none hover:border-[#4DE0F9] hover:shadow-[0_0_20px_rgba(77,224,249,0.3)] transition-all duration-200"
-                 style={{ zIndex: 300 }}
-                 onClick={(e) => {
-                   // Only trigger if not dragging and not clicking connection points
-                   const target = e.target as HTMLElement;
-                   if (!isDragging && !target.closest('.connection-point') && !target.closest('button')) {
-                     e.preventDefault();
-                     e.stopPropagation();
-                     handleNodeClick(node);
-                   }
-                 }}
-               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="w-3 h-3 rounded-full bg-[#4DE0F9] shadow-[0_0_8px_currentColor]" />
+              {/* Clean Modern Node */}
+              <div 
+                className="workflow-node bg-white/10 backdrop-blur-xl border-2 border-white/20 rounded-2xl cursor-move select-none hover:border-[#4DE0F9]/50 transition-all duration-200 min-w-[140px] max-w-[180px] shadow-[0_0_20px_rgba(255,255,255,0.1)]"
+                style={{ zIndex: 300 }}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement;
+                  const dragStarted = (e.currentTarget.parentElement as HTMLElement)?.getAttribute('data-drag-started') === 'true';
+                  
+                  if (!isDragging && !dragStarted && !target.closest('.connection-point') && !target.closest('button')) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    handleNodeClick(node);
+                  }
+                }}
+              >
+                {/* Node Content */}
+                <div className="flex flex-col items-center p-4 relative">
+                  {/* Delete Button - Top Right */}
                   {node.id !== 'start' && (
                     <button
                       type="button"
@@ -927,397 +838,119 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
                         e.stopPropagation();
                         removeNode(node.id);
                       }}
-                      className="p-1 text-red-400 hover:text-red-300 hover:bg-red-500/20 rounded transition-colors"
+                      className="absolute -top-1 -right-1 w-6 h-6 bg-red-500/80 hover:bg-red-500 text-white rounded-full flex items-center justify-center transition-colors z-10"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
                   )}
+                  
+                  {/* Node Icon */}
+                  <div className="w-8 h-8 bg-[#4DE0F9]/20 border border-[#4DE0F9]/30 rounded-xl flex items-center justify-center text-lg mb-2">
+                    {node.data.type === 'trigger' ? '⚡' : getNodeIcon((node.data as any).actionKind)}
+                  </div>
+                  
+                  {/* Node Name */}
+                  <span className="text-sm font-medium text-white text-center leading-tight">
+                    {node.data.label}
+                  </span>
                 </div>
-                
-                <h3 className="text-white font-medium text-sm mb-1">
-                  {node.data.label}
-                </h3>
-                
-                <p className="text-gray-300 text-xs">
-                  {node.data.type === 'trigger' ? 'Workflow Entry Point' : `Action: ${(node.data as any).actionKind || 'Unknown'}`}
-                </p>
 
-                {/* Canvas chips for trigger types - using cyan theme only */}
-                {(node.data as any).actionKind === 'webhook-trigger' && (node.data as any).config?.url && (
-                  <div className="absolute -right-1 -top-1 text-xs bg-[#4DE0F9]/20 border border-[#4DE0F9]/50 rounded px-1 py-0.5 backdrop-blur-sm">
-                    🌐
-                  </div>
-                )}
-                {(node.data as any).actionKind === 'schedule-trigger' && (node.data as any).config?.cron && (
-                  <div className="absolute -right-1 -top-1 text-xs bg-[#4DE0F9]/20 border border-[#4DE0F9]/50 rounded px-1 py-0.5 backdrop-blur-sm">
-                    ⏰{(node.data as any).config.cron}
-                  </div>
-                )}
-
-                {/* Connection points */}
-                {/* For switch nodes, render multiple output handles */}
-                {(node.data as any).actionKind === 'switch' ? (
-                  (() => {
-                    const config = (node.data as any).config || {};
-                    const cases = config.cases || [];
-                    const hasDefault = !!config.defaultNext;
-                    const totalHandles = cases.length + (hasDefault ? 1 : 0);
-                    
-                    // Calculate vertical spacing for handles
-                    const nodeHeight = 80;
-                    const handleSpacing = totalHandles > 1 ? nodeHeight / (totalHandles + 1) : nodeHeight / 2;
-                    
-                    return (
-                      <>
-                        {/* Case output handles */}
-                        {cases.map((caseItem: any, index: number) => {
-                          const yOffset = handleSpacing * (index + 1) - nodeHeight / 2;
-                          return (
-                            <div key={`case-${index}`}>
-                              <div 
-                                className="connection-point absolute -right-2 cursor-crosshair z-50"
-                                style={{
-                                  top: '50%',
-                                  transform: `translateY(calc(-50% + ${yOffset}px))`,
-                                  pointerEvents: 'auto',
-                                  zIndex: 1000,
-                                  width: '20px',
-                                  height: '20px'
-                                }}
+                {/* Connection Points */}
+                {/* Input handle - left side */}
+                {node.id !== 'start' && (
+                  <div 
+                    className="connection-point absolute -left-2 top-1/2 transform -translate-y-1/2 cursor-crosshair z-50"
                                 onMouseDown={(e) => {
                                   e.stopPropagation();
                                   e.preventDefault();
-                                  (e.nativeEvent as any).stopImmediatePropagation?.();
                                   setIsDragging(false);
-                                  handleConnectionStart(node.id, `case-${index}`, e);
-                                }}
-                                onDragStart={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  return false;
-                                }}
-                                onMouseEnter={() => {
-                                  document.body.style.cursor = 'crosshair';
-                                }}
-                                onMouseLeave={() => {
-                                  if (!isConnecting) {
-                                    document.body.style.cursor = 'default';
-                                  }
-                                }}
-                                draggable={false}
-                              >
-                                <div className="w-5 h-5 bg-[#4DE0F9] rounded-full border-2 border-white/30 shadow-[0_0_8px_#4DE0F9] hover:scale-125 transition-transform" draggable={false} />
-                              </div>
-                              {/* Case label */}
-                              <div 
-                                className="absolute text-xs text-[#4DE0F9] font-medium whitespace-nowrap pointer-events-none"
-                                style={{
-                                  right: '-8px',
-                                  top: '50%',
-                                  transform: `translateY(calc(-50% + ${yOffset}px + 12px))`,
-                                  zIndex: 999
-                                }}
-                              >
-                                {caseItem.value || `Case ${index + 1}`}
-                              </div>
-                            </div>
-                          );
-                        })}
-                        {/* Default output handle */}
-                        {hasDefault && (
-                          <div key="default">
-                            <div 
-                              className="connection-point absolute -right-2 cursor-crosshair z-50"
-                              style={{
-                                top: '50%',
-                                transform: `translateY(calc(-50% + ${handleSpacing * (cases.length + 1) - nodeHeight / 2}px))`,
-                                pointerEvents: 'auto',
-                                zIndex: 1000,
-                                width: '20px',
-                                height: '20px'
-                              }}
-                              onMouseDown={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                (e.nativeEvent as any).stopImmediatePropagation?.();
-                                setIsDragging(false);
-                                handleConnectionStart(node.id, 'default', e);
-                              }}
-                              onDragStart={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                return false;
-                              }}
-                              onMouseEnter={() => {
-                                document.body.style.cursor = 'crosshair';
-                              }}
-                              onMouseLeave={() => {
-                                if (!isConnecting) {
-                                  document.body.style.cursor = 'default';
-                                }
-                              }}
-                              draggable={false}
-                            >
-                              <div className="w-5 h-5 bg-orange-400 rounded-full border-2 border-white/30 shadow-[0_0_8px_orange] hover:scale-125 transition-transform" draggable={false} />
-                            </div>
-                            {/* Default label */}
-                            <div 
-                              className="absolute text-xs text-orange-400 font-medium whitespace-nowrap pointer-events-none"
-                              style={{
-                                right: '-8px',
-                                top: '50%',
-                                transform: `translateY(calc(-50% + ${handleSpacing * (cases.length + 1) - nodeHeight / 2}px + 12px))`,
-                                zIndex: 999
-                              }}
-                            >
-                              default
-                            </div>
+                      handleConnectionEnd(node.id, 'input', e);
+                    }}
+                    style={{ width: '16px', height: '16px' }}
+                  >
+                    <div className="w-4 h-4 bg-gray-300 border-2 border-white rounded-full hover:bg-blue-500 transition-colors" />
                           </div>
                         )}
-                      </>
-                    );
-                  })()
-                ) : (
-                  /* Regular single output handle for non-switch nodes */
+
+                {/* Output handle - right side */}
                   <div 
                     className="connection-point absolute -right-2 top-1/2 transform -translate-y-1/2 cursor-crosshair z-50"
                     onMouseDown={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      (e.nativeEvent as any).stopImmediatePropagation?.();
-                      
-                      // Prevent any node dragging
                       setIsDragging(false);
-                      
                       handleConnectionStart(node.id, 'output', e);
                     }}
-                    onDragStart={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      return false;
-                    }}
-                    onMouseEnter={() => {
-                      document.body.style.cursor = 'crosshair';
-                    }}
-                    onMouseLeave={() => {
-                      if (!isConnecting) {
-                        document.body.style.cursor = 'default';
-                      }
-                    }}
-                    style={{ 
-                      pointerEvents: 'auto', 
-                      zIndex: 1000,
-                      position: 'absolute',
-                      right: '-10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '20px',
-                      height: '20px'
-                    }}
-                    draggable={false}
-                  >
-                    <div className={`w-5 h-5 bg-[#4DE0F9] rounded-full border-2 border-white/30 shadow-[0_0_8px_#4DE0F9] hover:scale-125 transition-transform ${isConnecting ? 'ring-2 ring-white/50 animate-pulse' : ''}`} draggable={false} />
+                  style={{ width: '16px', height: '16px' }}
+                >
+                  <div className="w-4 h-4 bg-blue-500 border-2 border-white rounded-full hover:bg-blue-600 transition-colors" />
                   </div>
-                )}
-                {node.id !== 'start' && (
-                  <div 
-                    className="connection-point absolute -left-2 top-1/2 transform -translate-y-1/2 cursor-crosshair z-50"
-                    onMouseDown={(e) => {
-                      e.stopPropagation();
-                      e.preventDefault();
-                      (e.nativeEvent as any).stopImmediatePropagation?.();
-                      
-                      // Prevent any node dragging
-                      setIsDragging(false);
-                      
-                      if (isConnecting) {
-                        handleConnectionEnd(node.id, 'input', e);
-                      }
-                    }}
-                    onDragStart={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      return false;
-                    }}
-                    onMouseEnter={() => {
-                      document.body.style.cursor = 'crosshair';
-                    }}
-                    onMouseLeave={() => {
-                      if (!isConnecting) {
-                        document.body.style.cursor = 'default';
-                      }
-                    }}
-                    style={{ 
-                      pointerEvents: 'auto', 
-                      zIndex: 1000,
-                      position: 'absolute',
-                      left: '-10px',
-                      top: '50%',
-                      transform: 'translateY(-50%)',
-                      width: '20px',
-                      height: '20px'
-                    }}
-                    draggable={false}
-                  >
-                    <div className={`w-5 h-5 bg-[#4DE0F9] rounded-full border-2 border-white/30 shadow-[0_0_8px_#4DE0F9] hover:scale-125 transition-transform ${isConnecting ? 'ring-2 ring-white/50 animate-pulse' : ''}`} draggable={false} />
                   </div>
-                )}
-              </div>
-            </motion.div>
+            </Draggable>
           ))}
-
-          {/* Connections SVG - inside the transformed container */}
-          <svg 
-            className="absolute inset-0 pointer-events-none" 
-            style={{ 
-              zIndex: 50,
-              width: '100%',
-              height: '100%',
-              overflow: 'visible'
-            }}
-          >
-            {/* Render existing connections */}
-            {connections
-              .filter(connection => connection.source !== 'start' && connection.target !== 'start')
-              .map((connection) => {
-              const sourceNode = nodes.find(n => n.id === connection.source);
-              const targetNode = nodes.find(n => n.id === connection.target);
-              
-              if (!sourceNode || !targetNode) return null;
-              
-              // Calculate source position based on handle type for switch nodes
-              let sourceX = sourceNode.position.x + 160; // node width + connection point offset
-              let sourceY = sourceNode.position.y + 40; // default: center of node
-              
-              // For switch nodes, calculate specific handle position
-              if ((sourceNode.data as any).actionKind === 'switch' && connection.sourceHandle !== 'output') {
-                const config = (sourceNode.data as any).config || {};
-                const cases = config.cases || [];
-                const hasDefault = !!config.defaultNext;
-                const totalHandles = cases.length + (hasDefault ? 1 : 0);
-                const nodeHeight = 80;
-                const handleSpacing = totalHandles > 1 ? nodeHeight / (totalHandles + 1) : nodeHeight / 2;
-                
-                if (connection.sourceHandle?.startsWith('case-')) {
-                  const caseIndex = parseInt(connection.sourceHandle.replace('case-', ''));
-                  const yOffset = handleSpacing * (caseIndex + 1) - nodeHeight / 2;
-                  sourceY = sourceNode.position.y + 40 + yOffset;
-                } else if (connection.sourceHandle === 'default') {
-                  const yOffset = handleSpacing * (cases.length + 1) - nodeHeight / 2;
-                  sourceY = sourceNode.position.y + 40 + yOffset;
-                }
-              }
-              
-              const targetX = targetNode.position.x; // align with left edge of target node
-              const targetY = targetNode.position.y + 40; // center of target node
-              
-              // Create a curved path (React Flow style)
-              const midX = sourceX + (targetX - sourceX) * 0.5;
-              const controlOffset = Math.abs(targetX - sourceX) * 0.3;
-              const pathData = `M ${sourceX} ${sourceY} C ${sourceX + controlOffset} ${sourceY} ${targetX - controlOffset} ${targetY} ${targetX} ${targetY}`;
-              
-              // Determine connection color based on handle type
-              let strokeColor = "#4DE0F9";
-              if (connection.sourceHandle === 'default') {
-                strokeColor = "orange";
-              }
-              
-              return (
-                <g key={connection.id}>
-                  <path
-                    d={pathData}
-                    stroke={strokeColor}
-                    strokeWidth="2"
-                    fill="none"
-                    className="react-flow__edge-path"
-                    style={{ 
-                      filter: `drop-shadow(0 0 4px ${strokeColor === 'orange' ? 'rgba(255,165,0,0.3)' : 'rgba(77, 224, 249, 0.3)'})`,
-                      strokeLinecap: 'round'
-                    }}
-                  />
-                  {/* Connection dots */}
-                  <circle cx={sourceX} cy={sourceY} r="3" fill={strokeColor} className={`drop-shadow-[0_0_4px_${strokeColor === 'orange' ? 'rgba(255,165,0,0.8)' : 'rgba(77,224,249,0.8)'}]`} />
-                  <circle cx={targetX} cy={targetY} r="3" fill="#4DE0F9" className="drop-shadow-[0_0_4px_rgba(77,224,249,0.8)]" />
-                </g>
-              );
-            })}
-            
-            {/* Render temporary connection while dragging */}
-            {isConnecting && connectionStart && (
-              <g>
-                <path
-                  d={(() => {
-                    const sourceX = connectionStart.position.x;
-                    const sourceY = connectionStart.position.y;
-                    const targetX = mousePosition.x;
-                    const targetY = mousePosition.y;
-                    const controlOffset = Math.abs(targetX - sourceX) * 0.3;
-                    return `M ${sourceX} ${sourceY} C ${sourceX + controlOffset} ${sourceY} ${targetX - controlOffset} ${targetY} ${targetX} ${targetY}`;
-                  })()}
-                  stroke="#4DE0F9"
-                  strokeWidth="2"
-                  strokeDasharray="5,5"
-                  fill="none"
-                  className="react-flow__connectionline"
-                  style={{ 
-                    filter: 'drop-shadow(0 0 4px rgba(77, 224, 249, 0.5))',
-                    opacity: 0.8,
-                    strokeLinecap: 'round'
-                  }}
-                />
-                <circle cx={connectionStart.position.x} cy={connectionStart.position.y} r="3" fill="#4DE0F9" className="drop-shadow-[0_0_4px_rgba(77,224,249,0.8)]" />
-                <circle cx={mousePosition.x} cy={mousePosition.y} r="3" fill="#4DE0F9" className="drop-shadow-[0_0_4px_rgba(77,224,249,0.8)]" />
-              </g>
-            )}
-          </svg>
         </div>
 
-        {/* Instructions */}
-        {nodes.length === 1 && (
+        {/* Help Instructions */}
+        {nodes.filter(n => n.id !== 'start').length === 0 && (
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="absolute bottom-8 left-8 glass-panel p-4 max-w-sm"
-            style={{ zIndex: 400 }}
+            transition={{ delay: 0.5 }}
+            className="absolute bottom-8 left-8 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] text-white p-6 max-w-sm z-40"
           >
-            <h3 className="text-white font-medium mb-2">✨ Get Started</h3>
-            <p className="text-gray-300 text-sm mb-3">
-              Add actions from the sidebar to build your workflow. Drag nodes to rearrange them.
+            <h3 className="font-semibold mb-3 flex items-center">
+              <span className="text-lg mr-2">✨</span>
+              Get Started
+            </h3>
+            <p className="text-sm mb-4 text-gray-300 leading-relaxed">
+              Add nodes from the sidebar to build your workflow.
             </p>
-            <div className="text-xs text-gray-400">
-              • <strong>Drag nodes</strong> by their body to move them<br/>
-              • <strong>Create connections</strong> by clicking cyan output dots, then cyan input dots<br/>
-              • <strong>Delete nodes</strong> using the red trash icon<br/>
-              • <strong>Add nodes</strong> from the sidebar on the right
+            <div className="text-xs text-gray-400 space-y-2">
+              <div className="flex items-center">
+                <span className="w-1.5 h-1.5 bg-[#4DE0F9] rounded-full mr-3"></span>
+                Drag nodes to move them
+              </div>
+              <div className="flex items-center">
+                <span className="w-1.5 h-1.5 bg-[#4DE0F9] rounded-full mr-3"></span>
+                Click blue dots to create connections
+              </div>
+              <div className="flex items-center">
+                <span className="w-1.5 h-1.5 bg-[#4DE0F9] rounded-full mr-3"></span>
+                Double-click nodes to configure
+              </div>
             </div>
           </motion.div>
         )}
       </div>
 
-      {/* Sidebar */}
+      {/* Floating Sidebar */}
       <motion.div 
         initial={{ x: 300, opacity: 0 }}
         animate={{ 
           x: 0, 
           opacity: 1,
-          width: isSidebarCollapsed ? '60px' : '320px'
+          width: isSidebarCollapsed ? '60px' : '300px'
         }}
         transition={{ duration: 0.3 }}
-        className="border-l border-gray-700 bg-transparent relative flex flex-col h-full"
-        style={{ minWidth: isSidebarCollapsed ? '60px' : '320px' }}
+        className="absolute top-20 right-4 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl shadow-[0_0_30px_rgba(255,255,255,0.15)] z-[110] flex flex-col pointer-events-auto"
+        style={{ 
+          minWidth: isSidebarCollapsed ? '60px' : '300px', 
+          height: 'calc(100vh - 280px)',
+          maxHeight: 'calc(100vh - 280px)'
+        }}
       >
-        {/* Sidebar Header with Collapse Button */}
-        <div className="p-4 border-b border-gray-700 flex items-center justify-between flex-shrink-0">
+        {/* Sidebar Header */}
+        <div className={`p-4 border-b border-white/10 flex items-center flex-shrink-0 ${isSidebarCollapsed ? 'justify-center' : 'justify-between'}`}>
           {!isSidebarCollapsed && (
-            <h3 className="text-white font-semibold flex items-center">
-              <Settings className="w-5 h-5 mr-2 text-[#4DE0F9]" />
-              Available Nodes
+            <h3 className="text-white font-medium text-sm flex items-center">
+              <Plus className="w-4 h-4 mr-2 text-[#4DE0F9]" />
+              Add Nodes
             </h3>
           )}
           <button
             type="button"
             onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer pointer-events-auto"
             title={isSidebarCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
           >
             {isSidebarCollapsed ? (
@@ -1328,35 +961,18 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
           </button>
         </div>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+        {/* Sidebar Content */}
+        <div className="flex-1 overflow-y-auto p-4 scrollbar-hide">
           {isSidebarCollapsed ? (
-            /* Collapsed Sidebar - Show only icons */
-            <div className="space-y-3">
-              {['triggers', 'core', 'flow', 'integrations'].map((category) => {
-                const categoryActions = availableActions.filter(action => action.category === category);
-                if (categoryActions.length === 0) return null;
-                
-                const categoryIcons: Record<string, string> = {
-                  triggers: '⚡',
-                  core: '⚙️',
-                  flow: '🔀',
-                  integrations: '🔗'
-                };
-                
-                return (
-                  <div key={category} className="space-y-2">
-                    <div 
-                      className="text-center p-2 text-gray-400 text-xs font-medium"
-                      title={category.charAt(0).toUpperCase() + category.slice(1)}
-                    >
-                      {categoryIcons[category]}
-                    </div>
-                    {categoryActions.slice(0, 3).map((action) => (
-                      <button
+            /* Collapsed - Icons only */
+            <div className="space-y-2">
+              {availableActions.slice(0, 8).map((action) => (
+                      <motion.button
                         key={action.kind}
                         type="button"
-                        className="w-full p-2 glass-panel hover:bg-white/10 transition-colors rounded text-center"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="w-full aspect-square p-2 bg-white/5 hover:bg-white/10 transition-all duration-200 rounded-lg text-center border border-white/10 hover:border-[#4DE0F9]/30 group flex items-center justify-center cursor-pointer pointer-events-auto"
                         onClick={(e) => {
                           e.preventDefault();
                           e.stopPropagation();
@@ -1364,92 +980,74 @@ const SimpleWorkflowEditor: React.FC<SimpleWorkflowEditorProps> = React.memo(({
                         }}
                         title={action.name}
                       >
-                        <span className="text-lg">{action.icon}</span>
-                      </button>
+                        <span className="text-sm group-hover:scale-110 transition-transform duration-200">{action.icon}</span>
+                      </motion.button>
                     ))}
-                    {categoryActions.length > 3 && (
-                      <div className="text-center text-xs text-gray-500">
-                        +{categoryActions.length - 3}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
             </div>
           ) : (
-            /* Expanded Sidebar - Show full content */
-            <>
-              {/* Group actions by category */}
-              {['triggers', 'core', 'flow', 'integrations'].map((category) => {
+            /* Expanded - Full content */
+            <div className="space-y-6">
+              {['triggers', 'core', 'integrations'].map((category) => {
                 const categoryActions = availableActions.filter(action => action.category === category);
                 if (categoryActions.length === 0) return null;
                 
                 const categoryNames: Record<string, string> = {
                   triggers: 'Triggers',
-                  core: 'Core Steps', 
-                  flow: 'Flow Control',
+                  core: 'Core', 
                   integrations: 'Integrations'
                 };
                 
                 return (
-                  <div key={category} className="mb-6">
-                    <h4 className="text-gray-300 font-medium text-sm mb-3 uppercase tracking-wide">
+                  <motion.div 
+                    key={category}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.1 }}
+                  >
+                    <h4 className="text-gray-300 font-semibold text-xs mb-3 uppercase tracking-wider">
                       {categoryNames[category]}
                     </h4>
                     
                     <div className="space-y-2">
                       {categoryActions.map((action, index) => (
                         <motion.button
-                          type="button"
                           key={action.kind}
-                          initial={{ opacity: 0, x: 20 }}
+                          type="button"
+                          initial={{ opacity: 0, x: -20 }}
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="glass-panel p-3 cursor-pointer hover:bg-white/10 transition-colors group w-full text-left"
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                                                     className="w-full p-3 bg-white/5 hover:bg-white/10 transition-all duration-200 rounded-xl text-left border border-white/10 hover:border-[#4DE0F9]/30 group cursor-pointer pointer-events-auto"
                           onClick={(e) => {
-                            console.log('🎯 Node button clicked for:', action.kind);
                             e.preventDefault();
                             e.stopPropagation();
                             addNode(action.kind);
-                            return false;
                           }}
                         >
-                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center">
-                              <span className="text-lg mr-2">{action.icon}</span>
-                              <h4 className="text-white font-medium text-sm group-hover:text-[#4DE0F9] transition-colors">
+                            <span className="text-base mr-3 group-hover:scale-110 transition-transform duration-200">{action.icon}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium text-white truncate">
                                 {action.name}
-                              </h4>
                             </div>
-                            <Plus className="w-4 h-4 text-gray-400 group-hover:text-[#4DE0F9] transition-colors" />
-                          </div>
-                          
                           {action.description && (
-                            <p className="text-gray-400 text-xs ml-7">
+                                <div className="text-xs text-gray-400 truncate mt-0.5">
                               {action.description}
-                            </p>
+                                </div>
                           )}
+                            </div>
+                            <Plus className="w-3 h-3 text-gray-400 group-hover:text-[#4DE0F9] transition-colors flex-shrink-0" />
+                          </div>
                         </motion.button>
                       ))}
                     </div>
-                  </div>
+                  </motion.div>
                 );
               })}
-              
-
-              {availableActions.length === 0 && (
-                <div className="text-center py-8">
-                  <div className="w-12 h-12 bg-gray-600/20 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <Settings className="w-6 h-6 text-gray-500" />
-                  </div>
-                  <p className="text-gray-400 text-sm">No actions available</p>
                 </div>
-              )}
-            </>
           )}
         </div>
-
-
        </motion.div>
     </div>
   );

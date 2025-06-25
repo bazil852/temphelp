@@ -1,58 +1,66 @@
 {
-  "/api/v1/influencers": {
-    "get": {
-      "summary": "List all influencers",
-      "description": "Returns a list of all influencers belonging to the authenticated user.",
-      "tags": ["Influencers"],
-      "security": [
-        {
-          "ApiKeyAuth": []
-        }
-      ],
-      "responses": {
-        "200": {
-          "description": "List of influencers",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "count": {
-                    "type": "integer",
-                    "example": 2
-                  },
-                  "influencers": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "id": {
-                          "type": "string",
-                          "format": "uuid",
-                          "example": "123e4567-e89b-12d3-a456-426614174000"
-                        },
-                        "name": {
-                          "type": "string",
-                          "example": "Digital Emily"
-                        },
-                        "status": {
-                          "type": "string",
-                          "example": "completed",
-                          "enum": ["uploading", "training", "motion-training", "final-training", "completed", "failed"]
-                        },
-                        "created_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2023-01-01T00:00:00Z"
-                        },
-                        "updated_at": {
-                          "type": "string",
-                          "format": "date-time",
-                          "example": "2023-01-02T00:00:00Z"
-                        },
-                        "template_id": {
-                          "type": "string",
-                          "example": "tpl_1234567890"
+  "base_url": "http://localhost:3000",
+  "authentication": {
+    "type": "API Key",
+    "header": "x-api-key",
+    "description": "All endpoints require authentication via API key in the x-api-key header"
+  },
+  "endpoints": {
+    "/api/v1/influencers": {
+      "get": {
+        "summary": "List all influencers",
+        "description": "Returns a list of all influencers belonging to the authenticated user.",
+        "method": "GET",
+        "permissions_required": "influencers:read",
+        "request": {
+          "headers": {
+            "x-api-key": "your_api_key_here"
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "List of influencers",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "count": {
+                      "type": "integer",
+                      "example": 2
+                    },
+                    "influencers": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "format": "uuid",
+                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "Digital Emily"
+                          },
+                          "status": {
+                            "type": "string",
+                            "example": "completed"
+                          },
+                          "created_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2023-01-01T00:00:00Z"
+                          },
+                          "updated_at": {
+                            "type": "string",
+                            "format": "date-time",
+                            "example": "2023-01-02T00:00:00Z"
+                          },
+                          "template_id": {
+                            "type": "string",
+                            "example": "tpl_1234567890"
+                          }
                         }
                       }
                     }
@@ -60,376 +68,484 @@
                 }
               }
             }
-          }
-        },
-        "401": {
-          "description": "Unauthorized",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "error": {
-                    "type": "string",
-                    "example": "API key is required"
+          },
+          "401": { 
+            "description": "Unauthorized - API key required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "API key is required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": { 
+            "description": "Forbidden - Insufficient permissions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Insufficient permissions"
+                    }
                   }
                 }
               }
             }
           }
         },
-        "403": {
-          "description": "Forbidden",
+        "x-code-samples": [
+          {
+            "lang": "curl",
+            "source": "curl -X GET http://localhost:3000/api/v1/influencers -H 'x-api-key: your_api_key_here'"
+          },
+          {
+            "lang": "javascript",
+            "source": "const response = await fetch('http://localhost:3000/api/v1/influencers', {\n  headers: { 'x-api-key': 'your_api_key_here' }\n});\nconst data = await response.json();"
+          }
+        ]
+      },
+      "post": {
+        "summary": "Create a new influencer",
+        "description": "Creates a new AI influencer with the provided images and starts the training process.",
+        "method": "POST",
+        "permissions_required": "influencers:write",
+        "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
+                "required": ["name", "images"],
                 "properties": {
-                  "error": {
-                    "type": "string",
-                    "example": "Insufficient permissions"
-                  }
-                }
-              }
-            }
-          }
-        }
-      },
-      "x-code-samples": [
-        {
-          "lang": "curl",
-          "source": "curl -X GET http://localhost:3000/api/v1/influencers \\\n  -H 'x-api-key: your_api_key_here'"
-        },
-        {
-          "lang": "javascript",
-          "source": "const response = await fetch('http://localhost:3000/api/v1/influencers', {\n  headers: {\n    'x-api-key': 'your_api_key_here'\n  }\n});\n\nconst data = await response.json();\nconsole.log(data.influencers);"
-        }
-      ]
-    },
-    "post": {
-      "summary": "Create a new influencer",
-      "description": "Creates a new AI influencer with the provided images and starts the training process.",
-      "tags": ["Influencers"],
-      "security": [
-        {
-          "ApiKeyAuth": []
-        }
-      ],
-      "requestBody": {
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "required": ["name", "images"],
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "description": "Name of the influencer",
-                  "example": "Digital Emily"
-                },
-                "images": {
-                  "type": "array",
-                  "items": {
-                    "type": "string",
-                    "format": "binary"
-                  },
-                  "description": "Array of base64 encoded images for training (minimum 3)",
-                  "example": ["data:image/jpeg;base64,/9j/4AAQSkZJRg...", "data:image/jpeg;base64,/9j/4AAQSkZJRg..."]
-                }
-              }
-            }
-          }
-        }
-      },
-      "responses": {
-        "201": {
-          "description": "Influencer created successfully",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "example": "123e4567-e89b-12d3-a456-426614174000"
-                  },
                   "name": {
                     "type": "string",
+                    "description": "Name of the influencer",
                     "example": "Digital Emily"
                   },
-                  "status": {
-                    "type": "string",
-                    "example": "training"
-                  },
-                  "message": {
-                    "type": "string",
-                    "example": "Influencer created and training started"
+                  "images": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Array of base64 encoded images (minimum 3)",
+                    "example": [
+                      "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+                      "data:image/jpeg;base64,/9j/4AAQSkZJRg...",
+                      "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
+                    ]
                   }
                 }
               }
             }
           }
         },
-        "400": {
-          "description": "Invalid input",
+        "responses": {
+          "201": {
+            "description": "Influencer created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "Digital Emily"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "training"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Influencer created and training started"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { 
+            "description": "Invalid input - Name and at least 3 images required",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string",
+                      "example": "Invalid input - Name and at least 3 images required"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" }
+        },
+        "x-code-samples": [
+          {
+            "lang": "curl",
+            "source": "curl -X POST http://localhost:3000/api/v1/influencers \\\n  -H 'Content-Type: application/json' \\\n  -H 'x-api-key: your_api_key_here' \\\n  -d '{\"name\":\"Digital Emily\",\"images\":[\"data:image/jpeg;base64,...\"]}'"
+          },
+          {
+            "lang": "javascript",
+            "source": "const response = await fetch('http://localhost:3000/api/v1/influencers', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'x-api-key': 'your_api_key_here'\n  },\n  body: JSON.stringify({\n    name: 'Digital Emily',\n    images: ['data:image/jpeg;base64,...']\n  })\n});"
+          }
+        ]
+      }
+    },
+    "/api/v1/influencers/{id}": {
+      "get": {
+        "summary": "Get a specific influencer",
+        "description": "Returns detailed information about a specific influencer.",
+        "method": "GET",
+        "permissions_required": "influencers:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the influencer",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Influencer details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "Digital Emily"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "completed"
+                    },
+                    "template_id": {
+                      "type": "string",
+                      "example": "tpl_1234567890"
+                    },
+                    "created_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2023-01-01T00:00:00Z"
+                    },
+                    "updated_at": {
+                      "type": "string",
+                      "format": "date-time",
+                      "example": "2023-01-02T00:00:00Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Influencer not found" }
+        },
+        "x-code-samples": [
+          {
+            "lang": "curl",
+            "source": "curl -X GET http://localhost:3000/api/v1/influencers/{id} -H 'x-api-key: your_api_key_here'"
+          },
+          {
+            "lang": "javascript",
+            "source": "const response = await fetch(`http://localhost:3000/api/v1/influencers/${influencerId}`, {\n  headers: { 'x-api-key': 'your_api_key_here' }\n});"
+          }
+        ]
+      },
+      "put": {
+        "summary": "Update an influencer",
+        "description": "Updates an existing influencer's information.",
+        "method": "PUT",
+        "permissions_required": "influencers:write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the influencer",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "type": "object",
+                "required": ["name"],
                 "properties": {
-                  "error": {
+                  "name": {
                     "type": "string",
-                    "example": "Invalid input"
-                  },
-                  "message": {
-                    "type": "string",
-                    "example": "Name and at least 3 images are required"
+                    "description": "Updated name of the influencer",
+                    "example": "Digital Emily 2.0"
                   }
                 }
               }
             }
           }
         },
-        "401": {
-          "description": "Unauthorized"
+        "responses": {
+          "200": {
+            "description": "Influencer updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "name": {
+                      "type": "string",
+                      "example": "Digital Emily 2.0"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Influencer updated successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid input" },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Influencer not found" }
         },
-        "403": {
-          "description": "Forbidden"
-        }
+        "x-code-samples": [
+          {
+            "lang": "curl",
+            "source": "curl -X PUT http://localhost:3000/api/v1/influencers/{id} \\\n  -H 'Content-Type: application/json' \\\n  -H 'x-api-key: your_api_key_here' \\\n  -d '{\"name\":\"Digital Emily 2.0\"}'"
+          },
+          {
+            "lang": "javascript",
+            "source": "const response = await fetch(`http://localhost:3000/api/v1/influencers/${influencerId}`, {\n  method: 'PUT',\n  headers: {\n    'Content-Type': 'application/json',\n    'x-api-key': 'your_api_key_here'\n  },\n  body: JSON.stringify({ name: 'Digital Emily 2.0' })\n});"
+          }
+        ]
       },
-      "x-code-samples": [
-        {
-          "lang": "curl",
-          "source": "curl -X POST http://localhost:3000/api/v1/influencers \\\n  -H 'Content-Type: application/json' \\\n  -H 'x-api-key: your_api_key_here' \\\n  -d '{\"name\":\"Digital Emily\",\"images\":[\"data:image/jpeg;base64,/9j/4AAQSkZJRg...\", \"data:image/jpeg;base64,/9j/4AAQSkZJRg...\", \"data:image/jpeg;base64,/9j/4AAQSkZJRg...\"]}'"
+      "delete": {
+        "summary": "Delete an influencer",
+        "description": "Deletes an influencer and all associated resources.",
+        "method": "DELETE",
+        "permissions_required": "influencers:write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the influencer",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": { 
+            "description": "Influencer deleted successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {
+                      "type": "string",
+                      "example": "Influencer deleted successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Influencer not found" }
         },
-        {
-          "lang": "javascript",
-          "source": "const response = await fetch('http://localhost:3000/api/v1/influencers', {\n  method: 'POST',\n  headers: {\n    'Content-Type': 'application/json',\n    'x-api-key': 'your_api_key_here'\n  },\n  body: JSON.stringify({\n    name: 'Digital Emily',\n    images: [\n      'data:image/jpeg;base64,/9j/4AAQSkZJRg...',\n      'data:image/jpeg;base64,/9j/4AAQSkZJRg...',\n      'data:image/jpeg;base64,/9j/4AAQSkZJRg...'\n    ]\n  })\n});\n\nconst data = await response.json();\nconsole.log(data);"
-        }
-      ]
+        "x-code-samples": [
+          {
+            "lang": "curl",
+            "source": "curl -X DELETE http://localhost:3000/api/v1/influencers/{id} -H 'x-api-key: your_api_key_here'"
+          },
+          {
+            "lang": "javascript",
+            "source": "const response = await fetch(`http://localhost:3000/api/v1/influencers/${influencerId}`, {\n  method: 'DELETE',\n  headers: { 'x-api-key': 'your_api_key_here' }\n});"
+          }
+        ]
+      }
+    },
+    "/api/v1/influencers/{id}/train": {
+      "post": {
+        "summary": "Start or restart training for an influencer",
+        "description": "Initiates or restarts the training process for an existing influencer.",
+        "method": "POST",
+        "permissions_required": "influencers:write",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the influencer",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Training started successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "training"
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Training started successfully"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Influencer not found" }
+        },
+        "x-code-samples": [
+          {
+            "lang": "curl",
+            "source": "curl -X POST http://localhost:3000/api/v1/influencers/{id}/train -H 'x-api-key: your_api_key_here'"
+          },
+          {
+            "lang": "javascript",
+            "source": "const response = await fetch(`http://localhost:3000/api/v1/influencers/${influencerId}/train`, {\n  method: 'POST',\n  headers: { 'x-api-key': 'your_api_key_here' }\n});"
+          }
+        ]
+      }
+    },
+    "/api/v1/influencers/{id}/status": {
+      "get": {
+        "summary": "Get training status for an influencer",
+        "description": "Returns the current training status for an influencer.",
+        "method": "GET",
+        "permissions_required": "influencers:read",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "UUID of the influencer",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Training status",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "example": "123e4567-e89b-12d3-a456-426614174000"
+                    },
+                    "status": {
+                      "type": "string",
+                      "example": "training"
+                    },
+                    "training_status": {
+                      "type": "string",
+                      "example": "processing"
+                    },
+                    "is_motion": {
+                      "type": "boolean",
+                      "example": false
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "Training status: processing"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" },
+          "403": { "description": "Forbidden" },
+          "404": { "description": "Influencer not found" }
+        },
+        "x-code-samples": [
+          {
+            "lang": "curl",
+            "source": "curl -X GET http://localhost:3000/api/v1/influencers/{id}/status -H 'x-api-key: your_api_key_here'"
+          },
+          {
+            "lang": "javascript",
+            "source": "const response = await fetch(`http://localhost:3000/api/v1/influencers/${influencerId}/status`, {\n  headers: { 'x-api-key': 'your_api_key_here' }\n});"
+          }
+        ]
+      }
     }
   },
-  "/api/v1/influencers/{id}": {
-    "get": {
-      "summary": "Get a specific influencer",
-      "description": "Returns detailed information about a specific influencer.",
-      "tags": ["Influencers"],
-      "security": [
-        {
-          "ApiKeyAuth": []
-        }
-      ],
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "description": "ID of the influencer to retrieve",
-          "schema": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "example": "123e4567-e89b-12d3-a456-426614174000"
-        }
-      ],
-      "responses": {
-        "200": {
-          "description": "Influencer details",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "example": "123e4567-e89b-12d3-a456-426614174000"
-                  },
-                  "name": {
-                    "type": "string",
-                    "example": "Digital Emily"
-                  },
-                  "status": {
-                    "type": "string",
-                    "example": "completed"
-                  },
-                  "template_id": {
-                    "type": "string",
-                    "example": "tpl_1234567890"
-                  },
-                  "created_at": {
-                    "type": "string",
-                    "format": "date-time",
-                    "example": "2023-01-01T00:00:00Z"
-                  },
-                  "updated_at": {
-                    "type": "string",
-                    "format": "date-time",
-                    "example": "2023-01-02T00:00:00Z"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "401": {
-          "description": "Unauthorized"
-        },
-        "403": {
-          "description": "Forbidden"
-        },
-        "404": {
-          "description": "Influencer not found"
-        }
-      },
-      "x-code-samples": [
-        {
-          "lang": "curl",
-          "source": "curl -X GET http://localhost:3000/api/v1/influencers/123e4567-e89b-12d3-a456-426614174000 \\\n  -H 'x-api-key: your_api_key_here'"
-        },
-        {
-          "lang": "javascript",
-          "source": "const influencerId = '123e4567-e89b-12d3-a456-426614174000';\nconst response = await fetch(`http://localhost:3000/api/v1/influencers/${influencerId}`, {\n  headers: {\n    'x-api-key': 'your_api_key_here'\n  }\n});\n\nconst data = await response.json();\nconsole.log(data);"
-        }
-      ]
-    },
-    "put": {
-      "summary": "Update an influencer",
-      "description": "Updates an existing influencer's information.",
-      "tags": ["Influencers"],
-      "security": [
-        {
-          "ApiKeyAuth": []
-        }
-      ],
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "description": "ID of the influencer to update",
-          "schema": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "example": "123e4567-e89b-12d3-a456-426614174000"
-        }
-      ],
-      "requestBody": {
-        "required": true,
-        "content": {
-          "application/json": {
-            "schema": {
-              "type": "object",
-              "properties": {
-                "name": {
-                  "type": "string",
-                  "description": "Name of the influencer",
-                  "example": "Digital Emily 2.0"
-                }
-              }
-            }
-          }
-        }
-      },
-      "responses": {
-        "200": {
-          "description": "Influencer updated successfully",
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "id": {
-                    "type": "string",
-                    "format": "uuid",
-                    "example": "123e4567-e89b-12d3-a456-426614174000"
-                  },
-                  "name": {
-                    "type": "string",
-                    "example": "Digital Emily 2.0"
-                  },
-                  "message": {
-                    "type": "string",
-                    "example": "Influencer updated successfully"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "400": {
-          "description": "Invalid input"
-        },
-        "401": {
-          "description": "Unauthorized"
-        },
-        "403": {
-          "description": "Forbidden"
-        },
-        "404": {
-          "description": "Influencer not found"
-        }
-      },
-      "x-code-samples": [
-        {
-          "lang": "curl",
-          "source": "curl -X PUT http://localhost:3000/api/v1/influencers/123e4567-e89b-12d3-a456-426614174000 \\\n  -H 'Content-Type: application/json' \\\n  -H 'x-api-key: your_api_key_here' \\\n  -d '{\"name\":\"Digital Emily 2.0\"}'"
-        },
-        {
-          "lang": "javascript",
-          "source": "const influencerId = '123e4567-e89b-12d3-a456-426614174000';\nconst response = await fetch(`http://localhost:3000/api/v1/influencers/${influencerId}`, {\n  method: 'PUT',\n  headers: {\n    'Content-Type': 'application/json',\n    'x-api-key': 'your_api_key_here'\n  },\n  body: JSON.stringify({\n    name: 'Digital Emily 2.0'\n  })\n});\n\nconst data = await response.json();\nconsole.log(data);"
-        }
-      ]
-    },
-    "delete": {
-      "summary": "Delete an influencer",
-      "description": "Deletes an influencer and all associated resources.",
-      "tags": ["Influencers"],
-      "security": [
-        {
-          "ApiKeyAuth": []
-        }
-      ],
-      "parameters": [
-        {
-          "name": "id",
-          "in": "path",
-          "required": true,
-          "description": "ID of the influencer to delete",
-          "schema": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "example": "123e4567-e89b-12d3-a456-426614174000"
-        }
-      ],
-      "responses": {
-        "204": {
-          "description": "Influencer deleted successfully"
-        },
-        "401": {
-          "description": "Unauthorized"
-        },
-        "403": {
-          "description": "Forbidden"
-        },
-        "404": {
-          "description": "Influencer not found"
-        }
-      },
-      "x-code-samples": [
-        {
-          "lang": "curl",
-          "source": "curl -X DELETE http://localhost:3000/api/v1/influencers/123e4567-e89b-12d3-a456-426614174000 \\\n  -H 'x-api-key: your_api_key_here'"
-        },
-        {
-          "lang": "javascript",
-          "source": "const influencerId = '123e4567-e89b-12d3-a456-426614174000';\nconst response = await fetch(`http://localhost:3000/api/v1/influencers/${influencerId}`, {\n  method: 'DELETE',\n  headers: {\n    'x-api-key': 'your_api_key_here'\n  }\n});\n\nif (response.status === 204) {\n  console.log('Influencer deleted successfully');\n}"
-        }
-      ]
-    }
+  "status_values": {
+    "influencer_status": ["uploading", "training", "motion-training", "final-training", "completed", "failed"],
+    "training_status": ["queued", "processing", "completed", "failed"]
+  },
+  "notes": {
+    "permissions": "All endpoints require specific permissions (influencers:read or influencers:write) which are checked based on the API key",
+    "images": "Images must be provided as base64 encoded strings with data URI format (e.g., data:image/jpeg;base64,...)",
+    "minimum_images": "At least 3 images are required when creating an influencer",
+    "user_isolation": "All operations are scoped to the authenticated user - users can only access their own influencers"
   }
 }

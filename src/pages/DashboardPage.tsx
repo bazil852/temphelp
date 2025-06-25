@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Table2, Headset, Loader2, Users, Calendar, Webhook, Bell, Power, Clock, CheckCircle2, XCircle, Brain, Video, Zap } from 'lucide-react';
+import { Plus, Table2, Headset, Loader2, Users, Calendar, Webhook, Bell, Power, Clock, CheckCircle2, XCircle, Brain, Video, Zap, PlayCircle, Mic } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { InfluencerCard } from '../components/InfluencerCard';
 import { CloneCard } from '../components/CloneCard';
@@ -378,7 +378,19 @@ function DashboardPage() {
         </motion.div>
         
         {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+          <DashboardButton
+            icon={PlayCircle}
+            title="Generate a Video"
+            description="Create new video content with AI"
+            to="/videos"
+          />
+          <DashboardButton
+            icon={Mic}
+            title="Dub a Video"
+            description="Add voice dubbing to existing content"
+            to="/dubbing"
+          />
           <DashboardButton
             icon={Users}
             title="Influencers"
@@ -397,8 +409,8 @@ function DashboardPage() {
             description="Set up automated workflows and triggers"
             onClick={() => setIsWebhookModalOpen(true)}
             isDisabled={!automationsEnabled}
-                    />
-                  </div>
+          />
+        </div>
         
         {/* Widgets Grid */}
         <div className="flex flex-wrap gap-6">

@@ -36,14 +36,15 @@ export default function DashboardButton({
     active:scale-95 active:bg-white/5
     transition-all duration-200
     overflow-hidden
+    min-h-[160px]
     ${isDisabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
     ${className}
   `;
 
   const content = (
-    <div className="p-6">
-      <div className="flex items-center gap-4 mb-4">
-        <div className="relative">
+    <div className="p-6 h-full flex flex-col">
+      <div className="flex items-start gap-4 mb-4">
+        <div className="relative flex-shrink-0">
           <div className="p-3 bg-[#c9fffc]/10 rounded-xl group-hover:bg-[#c9fffc]/20 transition-colors">
             <Icon className="h-6 w-6 text-[#c9fffc] group-hover:scale-110 transition-transform duration-200" />
           </div>
@@ -51,9 +52,17 @@ export default function DashboardButton({
             <div className="absolute -top-1 -right-1 w-3 h-3 bg-[#c9fffc] rounded-full animate-pulse" />
           )}
         </div>
-        <h3 className="text-xl font-bold text-white tracking-wide">{title}</h3>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-lg font-bold text-white tracking-wide leading-tight break-words">
+            {title}
+          </h3>
+        </div>
       </div>
-      <p className="text-gray-400 text-sm tracking-wide">{description}</p>
+      <div className="flex-1">
+        <p className="text-gray-400 text-sm tracking-wide leading-relaxed">
+          {description}
+        </p>
+      </div>
     </div>
   );
 

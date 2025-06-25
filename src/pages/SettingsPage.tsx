@@ -4,6 +4,7 @@ import { useAuthStore } from "../store/authStore";
 import { Key, Lock, Loader2, CreditCard, Gift, Crown } from "lucide-react";
 import { motion } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import ApiKeyManagement from "../components/ApiKeyManagement";
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -181,22 +182,34 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="container mx-auto px-6 sm:px-12 py-8">
+    <div className="container mx-auto px-4 sm:px-6 py-8">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.3 }}
-        className="max-w-7xl mx-auto"
+        className="max-w-6xl mx-auto"
       >
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Left Column */}
-          <div className="space-y-6">
+        {/* Page Header */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="mb-8"
+        >
+          <h1 className="text-3xl font-bold text-white mb-2">Settings</h1>
+          <p className="text-gray-400">Manage your account settings and preferences</p>
+        </motion.div>
+
+        {/* Settings Grid */}
+        <div className="space-y-6">
+          {/* Top Row - Subscription and Bonus Minutes */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Subscription Overview Card */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
+              transition={{ delay: 0.2 }}
+              className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6"
             >
               <div className="flex items-center gap-2 mb-6">
                 <Crown className="h-5 w-5 text-[#4DE0F9]" />
@@ -240,13 +253,66 @@ export default function SettingsPage() {
               </div>
             </motion.div>
 
-            {/* Password Change Section */}
+            {/* Bonus Minutes Section */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
+              transition={{ delay: 0.3 }}
+              className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6"
             >
+              <div className="flex items-center gap-2 mb-6">
+                <Gift className="h-5 w-5 text-[#4DE0F9]" />
+                <h2 className="text-xl font-bold text-white">Bonus Minutes</h2>
+              </div>
+
+              <p className="text-lg font-medium text-white/80 mb-6">
+                Total Bonus Minutes Available: {totalBonusMinutes !== null ? totalBonusMinutes : "Loading..."}
+              </p>
+
+              <div className="grid grid-cols-1 gap-4">
+                {bonusMinsProducts.map((product, index) => (
+                  <motion.div
+                    key={product.price_Id}
+                    whileHover={{ scale: 1.02 }}
+                    className="bg-white/5 border border-white/10 rounded-xl p-4 shadow-lg hover:shadow-[#4DE0F9]/10 transition-all duration-200"
+                  >
+                    <div className="flex justify-between items-start mb-3">
+                      <h3 className="text-base font-semibold text-white">{product.title}</h3>
+                      {index === 1 && (
+                        <span className="px-2 py-1 text-xs font-medium text-white bg-gradient-to-r from-[#4DE0F9]/20 to-[#A855F7]/20 rounded-full">
+                          🔥 Best Value
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-lg font-medium text-white/80">${product.price}</p>
+                        <p className="text-sm text-white/60">{product.bonus_minutes} Minutes</p>
+                      </div>
+                      <motion.a
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        href={`${product.link}?prefilled_email=${currentUser?.email}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-4 py-2 rounded-full font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200"
+                      >
+                        Purchase
+                      </motion.a>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Password Change Section - Full Width */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6"
+                      >
               <div className="flex items-center gap-2 mb-6">
                 <Lock className="h-5 w-5 text-[#4DE0F9]" />
                 <h2 className="text-xl font-bold text-white">Change Password</h2>
@@ -264,7 +330,7 @@ export default function SettingsPage() {
                 </div>
               )}
 
-              <form onSubmit={handlePasswordChange} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-white/80 mb-2">
                     Current Password
@@ -273,7 +339,7 @@ export default function SettingsPage() {
                     type="password"
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
-                    className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
+                    className="w-full bg-white/10 text-white rounded-xl px-4 py-3 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
                     required
                   />
                 </div>
@@ -286,7 +352,7 @@ export default function SettingsPage() {
                     type="password"
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
-                    className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
+                    className="w-full bg-white/10 text-white rounded-xl px-4 py-3 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
                     required
                     minLength={6}
                   />
@@ -300,85 +366,35 @@ export default function SettingsPage() {
                     type="password"
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
-                    className="w-full bg-white/10 text-white rounded-full px-4 py-2 border border-white/10 shadow-inner focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
+                    className="w-full bg-white/10 text-white rounded-xl px-4 py-3 border border-white/10 focus:outline-none focus:ring-2 focus:ring-[#4DE0F9]/40 placeholder:text-gray-400"
                     required
                     minLength={6}
                   />
                 </div>
-
-                <div className="flex justify-end">
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    type="submit"
-                    disabled={isChangingPassword}
-                    className="px-6 py-2 rounded-full font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isChangingPassword ? (
-                      <div className="flex items-center gap-2">
-                        <Loader2 className="h-5 w-5 animate-spin" />
-                        <span>Updating...</span>
-                      </div>
-                    ) : (
-                      'Update Password'
-                    )}
-                  </motion.button>
-                </div>
-              </form>
-            </motion.div>
-          </div>
-
-          {/* Right Column */}
-          <div className="space-y-6">
-            {/* Bonus Minutes Section */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-[#0D1117]/50 backdrop-blur-xl border border-white/10 rounded-2xl shadow-[0_0_20px_rgba(255,255,255,0.05)] p-6 sm:p-8"
-            >
-              <div className="flex items-center gap-2 mb-6">
-                <Gift className="h-5 w-5 text-[#4DE0F9]" />
-                <h2 className="text-xl font-bold text-white">Bonus Minutes</h2>
               </div>
 
-              <p className="text-lg font-medium text-white/80 mb-6">
-                Total Bonus Minutes Available: {totalBonusMinutes !== null ? totalBonusMinutes : "Loading..."}
-              </p>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                {bonusMinsProducts.map((product, index) => (
-                  <motion.div
-                    key={product.price_Id}
-                    whileHover={{ scale: 1.02 }}
-                    className="bg-white/5 border border-white/10 rounded-xl p-6 shadow-lg hover:shadow-[#4DE0F9]/10 transition-all duration-200"
-                  >
-                    <div className="flex justify-between items-start mb-4">
-                      <h3 className="text-lg font-semibold text-white">{product.title}</h3>
-                      {index === 1 && (
-                        <span className="px-2 py-1 text-xs font-medium text-white bg-gradient-to-r from-[#4DE0F9]/20 to-[#A855F7]/20 rounded-full">
-                          🔥 Best Value
-                        </span>
-                      )}
+              <div className="flex justify-end mt-6">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={handlePasswordChange}
+                  disabled={isChangingPassword}
+                  className="px-6 py-3 rounded-xl font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isChangingPassword ? (
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <span>Updating...</span>
                     </div>
-                    <p className="text-xl font-medium text-white/80 mb-2">${product.price}</p>
-                    <p className="text-sm text-white/60 mb-4">{product.bonus_minutes} Bonus Minutes</p>
-
-                    <motion.a
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      href={`${product.link}?prefilled_email=${currentUser?.email}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full flex items-center justify-center px-4 py-2 rounded-full font-medium text-black bg-[#4DE0F9] hover:bg-[#4DE0F9]/90 hover:shadow-lg hover:shadow-[#4DE0F9]/20 transition-all duration-200"
-                    >
-                      Get Bonus Minutes
-                    </motion.a>
-                  </motion.div>
-                ))}
+                  ) : (
+                    'Update Password'
+                  )}
+                </motion.button>
               </div>
             </motion.div>
-          </div>
+
+          {/* API Key Management Section - Full Width */}
+          <ApiKeyManagement />
         </div>
       </motion.div>
     </div>

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import ApiSidebar from '../components/ApiDocs/ApiSidebar';
 import SimpleTester from '../components/ApiDocs/SimpleTester';
-import { Copy, Check, ChevronDown, ChevronRight } from 'lucide-react';
+import { Copy, Check, ChevronDown, ChevronRight, Maximize2 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Type for endpoint data
 type EndpointData = {
@@ -24,6 +25,7 @@ export default function ApiDocsPage() {
     'response': true,
     'examples': true
   });
+  const [isTestModalOpen, setIsTestModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchEndpoints = async () => {
@@ -78,30 +80,48 @@ export default function ApiDocsPage() {
     }));
   };
   
-  // Get the current endpoint data
+  // Get the current endpoint data - updated for new format
   const getCurrentEndpointData = (): EndpointData | null => {
     if (!activeEndpoint) return null;
     
     const endpoints = activeTab === 'influencers' ? influencerEndpoints : videoEndpoints;
-    if (!endpoints || !endpoints[activeEndpoint.path]) return null;
+    if (!endpoints) return null;
     
-    const methodData = endpoints[activeEndpoint.path][activeEndpoint.method];
-    if (!methodData) return null;
+    // Handle new format structure
+    let endpointData;
+    if (endpoints.endpoints) {
+      // New format with endpoints wrapper
+      endpointData = endpoints.endpoints[activeEndpoint.path]?.[activeEndpoint.method];
+    } else {
+      // Old format (for videos)
+      endpointData = endpoints[activeEndpoint.path]?.[activeEndpoint.method];
+    }
+    
+    if (!endpointData) return null;
     
     return {
       path: activeEndpoint.path,
       method: activeEndpoint.method,
-      data: methodData
+      data: endpointData
     };
   };
 
   const currentEndpointData = getCurrentEndpointData();
   
+  // Get current endpoints for sidebar - handle both formats
+  const getCurrentEndpoints = () => {
+    const endpoints = activeTab === 'influencers' ? influencerEndpoints : videoEndpoints;
+    if (!endpoints) return null;
+    
+    // Return the endpoints object, whether it's wrapped or direct
+    return endpoints.endpoints || endpoints;
+  };
+  
   return (
     <div className="h-screen overflow-hidden flex bg-gray-900 text-white w-full max-w-full">
       {/* Left sidebar with endpoints */}
       <ApiSidebar 
-        endpoints={activeTab === 'influencers' ? influencerEndpoints : videoEndpoints}
+        endpoints={getCurrentEndpoints()}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         setActiveEndpoint={handleSetActiveEndpoint}
@@ -110,8 +130,8 @@ export default function ApiDocsPage() {
         setSearchQuery={setSearchQuery}
       />
       
-      {/* Main content area */}
-      <div className="flex-1 h-screen overflow-y-auto min-w-0">
+      {/* Main content area - reduced width */}
+      <div className="flex-1 h-screen overflow-y-auto min-w-0 max-w-2xl">
         {loading ? (
           <div className="flex items-center justify-center h-full">
             <div className="text-center">
@@ -130,6 +150,14 @@ export default function ApiDocsPage() {
                   {currentEndpointData.method.toUpperCase()}
                 </span>
                 <h1 className="text-2xl font-bold ml-3">{currentEndpointData.data.summary}</h1>
+                {/* Test Modal Button */}
+                <button
+                  onClick={() => setIsTestModalOpen(true)}
+                  className="ml-auto bg-[#c9fffc] hover:bg-[#c9fffc]/80 text-black px-4 py-2 rounded-lg text-sm font-medium flex items-center transition-colors"
+                >
+                  <Maximize2 size={16} className="mr-2" />
+                  Test Endpoint
+                </button>
               </div>
               <div className="bg-gray-800 rounded-lg p-3 flex items-center">
                 <code className="text-[#c9fffc]300 flex-1 font-mono">{currentEndpointData.path}</code>
@@ -155,6 +183,16 @@ export default function ApiDocsPage() {
               {expandedSections.description && (
                 <div className="bg-gray-800 rounded-lg p-4 text-gray-300">
                   <p>{currentEndpointData.data.description}</p>
+                  
+                  {/* Permissions if they exist */}
+                  {currentEndpointData.data.permissions_required && (
+                    <div className="mt-4">
+                      <h4 className="text-md font-semibold mb-2">Required Permissions</h4>
+                      <span className="inline-block bg-blue-900/30 px-3 py-1 rounded-md text-blue-300 text-sm">
+                        {currentEndpointData.data.permissions_required}
+                      </span>
+                    </div>
+                  )}
                   
                   {/* Parameters if they exist */}
                   {currentEndpointData.data.parameters && (
@@ -225,7 +263,7 @@ export default function ApiDocsPage() {
                                     <span className="ml-3 text-xs bg-gray-700 px-2 py-1 rounded-md text-gray-300">
                                       {value.type || 'object'}
                                     </span>
-                                    {value.required && (
+                                    {currentEndpointData.data.requestBody.content['application/json'].schema.required?.includes(key) && (
                                       <span className="ml-2 text-xs bg-red-900/30 px-2 py-1 rounded-md text-red-300">
                                         required
                                       </span>
@@ -275,6 +313,7 @@ export default function ApiDocsPage() {
                 )}
               </div>
             )}
+            
             {/* Responses */}
             {currentEndpointData.data.responses && (
               <div className="mb-6">
@@ -390,13 +429,27 @@ export default function ApiDocsPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-sm font-medium text-gray-300">Base URL</h3>
-                  <code className="text-[#c9fffc] text-sm">https://api.aiinfluencer.com/v1</code>
+                  <code className="text-[#c9fffc] text-sm">
+                    {activeTab === 'influencers' && influencerEndpoints?.base_url ? 
+                      influencerEndpoints.base_url : 
+                      'https://api.aiinfluencer.com/v1'
+                    }
+                  </code>
                 </div>
                 <div>
                   <h3 className="text-sm font-medium text-gray-300">API Version</h3>
                   <span className="text-[#c9fffc] text-sm">v1.0</span>
                 </div>
               </div>
+              {activeTab === 'influencers' && influencerEndpoints?.authentication && (
+                <div className="mt-4 pt-4 border-t border-gray-600">
+                  <h3 className="text-sm font-medium text-gray-300 mb-2">Authentication</h3>
+                  <p className="text-gray-400 text-sm">{influencerEndpoints.authentication.description}</p>
+                  <code className="mt-2 block bg-gray-900 p-3 rounded text-[#c9fffc] text-sm">
+                    {influencerEndpoints.authentication.header}: YOUR_API_KEY
+                  </code>
+                </div>
+              )}
             </div>
           </div>
         ) : (
@@ -425,6 +478,75 @@ export default function ApiDocsPage() {
       
       {/* Right sidebar with API tester */}
       <SimpleTester endpoint={currentEndpointData} />
+      
+      {/* Test Endpoint Modal */}
+      <AnimatePresence>
+        {isTestModalOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) {
+                setIsTestModalOpen(false);
+              }
+            }}
+          >
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="bg-[#0D1117] border border-gray-700 rounded-xl shadow-2xl w-full max-w-6xl h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex h-full">
+                {/* Modal Header */}
+                <div className="flex-1 flex flex-col">
+                  <motion.div 
+                    initial={{ opacity: 0, y: -10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: 0.1 }}
+                    className="flex items-center justify-between p-6 border-b border-gray-700"
+                  >
+                    <div className="flex items-center">
+                      <span 
+                        className={`inline-block w-20 rounded text-xs font-mono text-center py-1 mr-3 ${getMethodColor(currentEndpointData?.method || '')}`}
+                      >
+                        {currentEndpointData?.method.toUpperCase()}
+                      </span>
+                      <h2 className="text-xl font-bold text-white">
+                        {currentEndpointData?.data.summary} - API Tester
+                      </h2>
+                    </div>
+                    <motion.button
+                      whileHover={{ scale: 1.1, rotate: 90 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={() => setIsTestModalOpen(false)}
+                      className="text-gray-400 hover:text-white p-2 hover:bg-gray-800 rounded-lg transition-colors"
+                    >
+                      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </motion.button>
+                  </motion.div>
+                  
+                  {/* Modal Content */}
+                  <div className="flex-1 overflow-hidden">
+                    <SimpleTester 
+                      endpoint={currentEndpointData} 
+                      isModal={true}
+                      onClose={() => setIsTestModalOpen(false)}
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

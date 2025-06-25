@@ -636,183 +636,140 @@ const AutomationBuilderEditorPage: React.FC = () => {
   }
 
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex-1 flex flex-col bg-transparent h-screen"
-    >
-      {/* Header */}
+    <div className="fixed inset-0 bg-gray-900 overflow-hidden">
+      {/* Floating Top Bar */}
       <motion.div 
-        initial={{ y: -20, opacity: 0 }}
+        initial={{ y: -60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.1 }}
-        className="glass-panel px-6 py-4 m-6 mb-0"
+        transition={{ duration: 0.3 }}
+        className="absolute top-4 left-4 right-4 z-[100] flex items-center justify-between px-6 py-3 rounded-lg border border-white/20 pointer-events-auto"
+        style={{ backdropFilter: 'blur(12px)', backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
       >
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <motion.button
-              type="button"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => {
-                console.log('🔙 Back button clicked, navigating to automation-builder');
-                navigate('/automation-builder');
-              }}
-              className="p-2 text-gray-300 hover:text-[#4DE0F9] hover:bg-[#4DE0F9] hover:bg-opacity-10 rounded-lg transition-colors"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </motion.button>
-            <motion.div
-              initial={{ x: -20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-            >
-              <h1 className="text-xl font-bold text-white">{workflowName}</h1>
-              <div className="flex items-center space-x-4 text-sm text-gray-300">
-                <span>
-                  Status: <span className={`font-medium ${
-                    workflow.status === 'active' ? 'text-green-400' : 'text-gray-400'
-                  }`}>
-                    {workflow.status}
-                  </span>
-                </span>
-                {workflow.updated_at && (
-                  <span>
-                    Last saved: {new Date(workflow.updated_at).toLocaleString()}
-                  </span>
-                )}
-              </div>
-            </motion.div>
-          </div>
+        <div className="flex items-center space-x-4">
+          <motion.button
+            type="button"
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.1 }}
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('⬅️ Back button clicked');
+              navigate('/automation-builder');
+            }}
+            className="inline-flex items-center px-3 py-2 text-sm text-gray-300 hover:text-white transition-colors cursor-pointer pointer-events-auto"
+          >
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Workflows
+          </motion.button>
 
-          <div className="flex items-center space-x-3">
-            {!isNewWorkflow && (
-              <>
-                <motion.button
-                  type="button"
-                  initial={{ x: 20, opacity: 0 }}
-                  animate={{ x: 0, opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => {
-                    console.log('🔄 Toggle status button clicked');
-                    handleToggleStatus();
-                  }}
-                  className={`inline-flex items-center px-3 py-2 text-sm rounded-lg border transition-all ${
-                    workflow.status === 'active'
-                      ? 'border-orange-500 border-opacity-30 text-orange-400 bg-orange-500 bg-opacity-10 hover:bg-opacity-20'
-                      : 'border-green-500 border-opacity-30 text-green-400 bg-green-500 bg-opacity-10 hover:bg-opacity-20'
-                  }`}
-                >
-                  {workflow.status === 'active' ? (
-                    <>
-                      <Pause className="w-4 h-4 mr-2" />
-                      Deactivate
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-4 h-4 mr-2" />
-                      Activate
-                    </>
-                  )}
-                </motion.button>
+          <div className="h-6 w-px bg-gray-600" />
 
-                {workflow.status === 'active' && (
-                  <motion.button
-                    type="button"
-                    initial={{ x: 20, opacity: 0 }}
-                    animate={{ x: 0, opacity: 1 }}
-                    transition={{ delay: 0.35 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => {
-                      console.log('🧪 Test Manual Trigger button clicked');
-                      handleTestManualTrigger();
-                    }}
-                    className="inline-flex items-center px-3 py-2 text-sm rounded-lg border border-blue-500 border-opacity-30 text-blue-400 bg-blue-500 bg-opacity-10 hover:bg-opacity-20 transition-all"
-                  >
-                    <Zap className="w-4 h-4 mr-2" />
-                    Test Trigger
-                  </motion.button>
-                )}
-              </>
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="flex items-center space-x-3"
+          >
+            <h1 className="text-lg font-semibold text-white truncate max-w-xs">
+              {workflowName}
+            </h1>
+            
+            {workflow?.status && (
+              <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                workflow.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-gray-500/20 text-gray-400'
+              }`}>
+                {workflow.status === 'active' ? 'Active' : 'Inactive'}
+              </span>
             )}
+          </motion.div>
+        </div>
 
+        {/* Canvas Controls - Simplified */}
+        <div className="flex items-center space-x-2">
+          {/* Activate/Deactivate Button */}
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('🔄 Activate button clicked, current status:', workflow?.status);
+              handleToggleStatus();
+            }}
+            className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors cursor-pointer pointer-events-auto ${
+              workflow?.status === 'active'
+                ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                : 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
+            }`}
+            title={workflow?.status === 'active' ? 'Deactivate Workflow' : 'Activate Workflow'}
+          >
+            {workflow?.status === 'active' ? 'Deactivate' : 'Activate'}
+          </motion.button>
+
+          <motion.button
+            type="button"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              console.log('⚙️ Settings button clicked');
+              setShowSettings(true);
+            }}
+            className="p-2 text-gray-400 hover:text-white hover:bg-white/10 rounded-lg transition-colors cursor-pointer pointer-events-auto"
+            title="Workflow Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </motion.button>
+
+          <div className="flex items-center space-x-1">
+            {showSavedIndicator && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+                className="flex items-center text-green-400 text-sm px-2"
+              >
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                Saved
+              </motion.div>
+            )}
+            
             <motion.button
               type="button"
-              initial={{ x: 20, opacity: 0 }}
-              animate={{ x: 0, opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => {
-                console.log('⚙️ Settings button clicked');
-                setShowSettings(true);
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('💾 Manual Save button clicked');
+                handleSave(undefined, true);
               }}
-              className="p-2 text-gray-300 hover:text-[#4DE0F9] hover:bg-[#4DE0F9] hover:bg-opacity-10 rounded-lg transition-colors"
+              disabled={isSaving}
+              className="px-6 py-2 bg-[#4DE0F9] text-black font-medium rounded-lg hover:bg-[#4DE0F9]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors cursor-pointer pointer-events-auto min-w-[100px]"
             >
-              <Settings className="w-5 h-5" />
-            </motion.button>
-
-            <div className="flex items-center space-x-2">
-              {showSavedIndicator && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  exit={{ opacity: 0, scale: 0.8 }}
-                  className="flex items-center text-green-400 text-sm"
-                >
-                  <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse" />
-                  Saved ✓
-                </motion.div>
+              {isSaving ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4 mr-2" />
+                  Save
+                </>
               )}
-              
-              <motion.button
-                type="button"
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.45 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  console.log('Test workflow clicked');
-                }}
-                className="inline-flex items-center px-3 py-2 text-sm rounded-lg border border-blue-500 border-opacity-30 text-blue-400 bg-blue-500 bg-opacity-10 hover:bg-opacity-20 transition-all"
-              >
-                <Play className="w-4 h-4 mr-2" />
-                Test Workflow
-              </motion.button>
-              
-              <motion.button
-                type="button"
-                initial={{ x: 20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.5 }}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                onClick={() => {
-                  console.log('💾 Manual Save button clicked');
-                  handleSave(undefined, true);
-                }}
-                disabled={isSaving}
-                className="glow-button inline-flex items-center px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Save className="w-4 h-4 mr-2" />
-                {isSaving ? 'Saving...' : 'Save'}
-              </motion.button>
-            </div>
+            </motion.button>
           </div>
         </div>
       </motion.div>
 
-      {/* Workflow Editor */}
-      <motion.div 
-        initial={{ y: 20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="flex-1 mx-6 mb-6 glass-panel overflow-hidden"
-      >
+      {/* Full-Screen Workflow Editor */}
+      <div className="w-full h-full">
         <SimpleWorkflowEditor
           workflow={{ ...workflowData, id: workflow?.id }}
           availableActions={AVAILABLE_ACTIONS}
@@ -821,7 +778,7 @@ const AutomationBuilderEditorPage: React.FC = () => {
           nodeOutputs={nodeOutputs}
           onNodeClick={handleNodeClick}
         />
-      </motion.div>
+      </div>
 
       {/* Settings Modal */}
       <AnimatePresence>
@@ -830,7 +787,7 @@ const AutomationBuilderEditorPage: React.FC = () => {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
           >
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -905,7 +862,7 @@ const AutomationBuilderEditorPage: React.FC = () => {
                     setShowSettings(false);
                     handleSave(undefined, true);
                   }}
-                  className="glow-button px-4 py-2"
+                  className="px-4 py-2 bg-[#4DE0F9] text-black font-medium rounded-lg hover:bg-[#4DE0F9]/90 transition-colors"
                 >
                   Save Changes
                 </motion.button>
@@ -947,7 +904,7 @@ const AutomationBuilderEditorPage: React.FC = () => {
         nodeOutputs={nodeOutputs}
         availableNodes={workflowData?.nodes?.filter((node: any) => node.id !== 'start') || []}
       />
-    </motion.div>
+    </div>
   );
 };
 
