@@ -4,6 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { InfluencerCard } from '../components/InfluencerCard';
 import { CloneCard } from '../components/CloneCard';
 import CreateInfluencerModal from '../components/CreateInfluencerModal';
+import CreateVideoModal from '../components/CreateVideoModal';
 import { useInfluencerStore } from '../store/influencerStore';
 import { Influencer } from '../types';
 import RequestInfluencerModal from '../components/RequestInfluencerModal';
@@ -74,6 +75,7 @@ function DashboardPage() {
   const navigate = useNavigate();
   const [isRequestModalOpen, setIsRequestModalOpen] = useState(false); // NEW state
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
   const [editingInfluencer, setEditingInfluencer] = useState<Influencer | null>(null);
   const { influencers, fetchInfluencers } = useInfluencerStore();
   const { currentUser } = useAuthStore();
@@ -383,13 +385,13 @@ function DashboardPage() {
             icon={PlayCircle}
             title="Generate a Video"
             description="Create new video content with AI"
-            to="/videos"
+            onClick={() => setIsVideoModalOpen(true)}
           />
           <DashboardButton
             icon={Mic}
             title="Dub a Video"
             description="Add voice dubbing to existing content"
-            to="/dubbing"
+            to="/video-dubbing"
           />
           <DashboardButton
             icon={Users}
@@ -436,6 +438,59 @@ function DashboardPage() {
             influencerId={editingInfluencer?.id} 
           />
         )}
+        
+        {/* Generate Video Modal */}
+        {isVideoModalOpen && (
+          <>
+            {filteredInfluencers.available.length > 0 ? (
+              <CreateVideoModal
+                influencerId={filteredInfluencers.available[0].id}
+                templateId={filteredInfluencers.available[0].templateId || ''}
+                influencer={filteredInfluencers.available[0]}
+                onClose={() => setIsVideoModalOpen(false)}
+                isClone={false}
+              />
+            ) : (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+              >
+                <motion.div 
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  className="bg-[#1a1a1a]/70 backdrop-blur-xl border border-white/10 rounded-2xl shadow-2xl p-8 w-full max-w-md text-center"
+                >
+                  <div className="mb-6">
+                    <Users className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-xl font-bold text-white mb-2">No Influencers Available</h3>
+                    <p className="text-gray-400">You need to create an influencer before generating videos.</p>
+                  </div>
+                  <div className="flex flex-col gap-3">
+                    <button
+                      onClick={() => {
+                        setIsVideoModalOpen(false);
+                        setIsModalOpen(true);
+                      }}
+                      className="w-full px-4 py-3 bg-cyan-500 text-black rounded-lg hover:bg-cyan-400 font-medium transition-colors"
+                    >
+                      Create Influencer
+                    </button>
+                    <button
+                      onClick={() => setIsVideoModalOpen(false)}
+                      className="w-full px-4 py-3 border border-white/20 text-white rounded-lg hover:bg-white/10 font-medium transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </motion.div>
+              </motion.div>
+            )}
+          </>
+        )}
+        
       <SafariHomeScreenPopup />
 
         {/* Featured Content Section */}

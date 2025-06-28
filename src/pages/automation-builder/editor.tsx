@@ -636,13 +636,13 @@ const AutomationBuilderEditorPage: React.FC = () => {
   }
 
   return (
-    <div className="fixed inset-0 bg-gray-900 overflow-hidden">
-      {/* Floating Top Bar */}
+    <div className="fixed inset-0 bg-gray-900 overflow-hidden flex flex-col">
+      {/* Top Bar - Outside Canvas */}
       <motion.div 
         initial={{ y: -60, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.3 }}
-        className="absolute top-4 left-4 right-4 z-[100] flex items-center justify-between px-6 py-3 rounded-lg border border-white/20 pointer-events-auto"
+        className="flex-shrink-0 mx-4 mt-4 mb-2 flex items-center justify-between px-6 py-3 rounded-lg border border-white/20 pointer-events-auto"
         style={{ backdropFilter: 'blur(12px)', backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
       >
         <div className="flex items-center space-x-4">
@@ -769,7 +769,7 @@ const AutomationBuilderEditorPage: React.FC = () => {
       </motion.div>
 
       {/* Full-Screen Workflow Editor */}
-      <div className="w-full h-full">
+      <div className="flex-1 w-full mx-4 mb-4 rounded-lg overflow-hidden">
         <SimpleWorkflowEditor
           workflow={{ ...workflowData, id: workflow?.id }}
           availableActions={AVAILABLE_ACTIONS}
