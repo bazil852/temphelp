@@ -7,4 +7,14 @@ export default defineConfig({
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
+  build: {
+    rollupOptions: {
+      treeshake: false,
+      output: {
+        manualChunks: undefined,
+      },
+    },
+    target: 'esnext',
+    minify: false,
+  },
 });
