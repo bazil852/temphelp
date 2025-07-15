@@ -96,7 +96,7 @@ export default function Chatbot() {
       }
     },
     'planner': {
-      path: '/planner',
+      path: '/content-planner',
       highlight: {
         selector: '[data-tour="calendar"]',
         message: 'Use the content planner to create multiple videos at once'

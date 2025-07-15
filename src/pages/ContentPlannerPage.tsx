@@ -1,338 +1,308 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Calendar, Filter, Search, Plus, Settings } from 'lucide-react';
+import TopBar from '../components/content-planner/TopBar';
+import InfluencerSidebar from '../components/content-planner/InfluencerSidebar';
+import CalendarView from '../components/content-planner/CalendarView';
+import InspectorDrawer from '../components/content-planner/InspectorDrawer';
+import ScheduleComposerModal from '../components/content-planner/ScheduleComposerModal';
+import BulkToolbar from '../components/content-planner/BulkToolbar';
+import ToastCenter from '../components/content-planner/ToastCenter';
+import { ViewMode, CalendarEvent, InfluencerWithLooks, DraggedInfluencer } from '../types/content-planner';
 import { useInfluencerStore } from '../store/influencerStore';
-import { useContentStore } from '../store/contentStore';
 import { useAuthStore } from '../store/authStore';
-import { supabase } from '../lib/supabase';
-import { uploadAudioToSupabase } from '../lib/supabase';
-
-interface ContentRow {
-  id: string;
-  influencerId: string;
-  prompt: string;
-  title: string;
-  cta: string;
-  script: string;
-  isGenerating: boolean;
-  isSelected: boolean;
-  showAiOptions?: boolean;
-}
-
-const createEmptyRow = (influencerId: string): ContentRow => ({
-  id: crypto.randomUUID(),
-  influencerId,
-  prompt: '',
-  title: '',
-  cta: '',
-  script: '',
-  isGenerating: false,
-  isSelected: false,
-  showAiOptions: false
-});
+import { 
+  getContentPlans, 
+  createContentPlan, 
+  updateContentPlan,
+  deleteContentPlans,
+  contentPlansToCalendarEvents,
+  CreateContentPlanRequest 
+} from '../services/contentPlanService';
 
 export default function ContentPlannerPage() {
-  const influencers = useInfluencerStore((state) => state.getInfluencersForCurrentUser());
-  const { generateScript, generateVideo } = useContentStore();
+  const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser } = useAuthStore();
-  const defaultInfluencerId = influencers[0]?.id || '';
+  const influencers = useInfluencerStore((state) => state.getInfluencersForCurrentUser());
   
-  // Initialize with 4 empty rows
-  const [rows, setRows] = useState<ContentRow[]>([
-    createEmptyRow(defaultInfluencerId),
-    createEmptyRow(defaultInfluencerId),
-    createEmptyRow(defaultInfluencerId),
-    createEmptyRow(defaultInfluencerId)
-  ]);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [error, setError] = useState('');
+  // URL-based view mode management
+  const viewMode: ViewMode = (searchParams.get('view') as ViewMode) || 'month';
+  
+  // State management
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
+  const [selectedEvents, setSelectedEvents] = useState<string[]>([]);
+  const [showInspector, setShowInspector] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [showComposer, setShowComposer] = useState(false);
+  const [composerData, setComposerData] = useState<{
+    influencerId?: string;
+    dateTime?: Date;
+  } | null>(null);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterInfluencers, setFilterInfluencers] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const addRow = () => {
-    setRows([...rows, createEmptyRow(defaultInfluencerId)]);
-  };
-
-  const updateRow = (id: string, updates: Partial<ContentRow>) => {
-    setRows(rows.map(row => row.id === id ? { ...row, ...updates } : row));
-  };
-
-  const deleteRow = (id: string) => {
-    // Only allow deletion if more than one row exists
-    if (rows.length > 1) {
-      setRows(rows.filter(row => row.id !== id));
-    }
-  };
-
-  const generateScriptForRow = async (row: ContentRow, action: 'write' | 'shorten' | 'longer' | 'engaging' = 'write') => {
-    if (!row.prompt) return;
-
-    updateRow(row.id, { isGenerating: true, showAiOptions: false });
-    try {
-      let prompt = '';
-      switch (action) {
-        case 'write':
-          prompt = `Create a script for a social media video with the following context:
-          ${row.prompt}
-          ${row.cta ? `\nCall to Action: ${row.cta}` : ''}
-          Make the script engaging, conversational, and natural. Include the call to action seamlessly.`;
-          break;
-        case 'shorten':
-          prompt = `Make this script more concise while maintaining its key message: ${row.prompt}`;
-          break;
-        case 'longer':
-          prompt = `Expand this script with more details and examples while maintaining its tone: ${row.prompt}`;
-          break;
-        case 'engaging':
-          prompt = `Make this script more engaging and captivating while maintaining its core message: ${row.prompt}`;
-          break;
+  // Convert influencers to the required format
+  const influencersWithLooks: InfluencerWithLooks[] = influencers.map(inf => ({
+    id: inf.id,
+    name: inf.name,
+    looks: [
+      {
+        id: inf.id,
+        label: 'Default Look',
+        thumbnailUrl: inf.preview_url || '/default-avatar.png'
       }
+    ],
+    avatar: inf.preview_url
+  }));
 
-      const script = await generateScript(prompt);
-      updateRow(row.id, { script, isGenerating: false });
-    } catch (error) {
-      console.error('Failed to generate script:', error);
-      updateRow(row.id, { isGenerating: false });
-    }
-  };
+  useEffect(() => {
+    // Load content plans from backend
+    fetchContentPlans();
+  }, [currentUser]);
 
-  const handleGenerateSelected = async () => {
-    const selectedRows = rows.filter(row => row.isSelected && row.script && row.title);
-    if (selectedRows.length === 0) return;
-    
-    setIsGenerating(true);
-    setError('');
-
+  const fetchContentPlans = async () => {
+    setIsLoading(true);
     try {
-      for (const row of selectedRows) {
-        const influencer = influencers.find(inf => inf.id === row.influencerId);
-        if (!influencer) continue;
-
-        // First generate audio and get duration
-        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${influencer.voice_id}?output_format=mp3_44100_128`, {
-          method: 'POST',
-          headers: {
-            'xi-api-key': import.meta.env.VITE_ELEVEN,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            text: row.script,
-            model_id: 'eleven_multilingual_v2'
-          })
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to generate audio');
-        }
-
-        const audioBlob = await response.blob();
-        const audioUrl = URL.createObjectURL(audioBlob);
-
-        // Get audio duration
-        const audio = new Audio(audioUrl);
-        const audioDuration = await new Promise<number>((resolve) => {
-          audio.addEventListener('loadedmetadata', () => {
-            resolve(audio.duration);
-          });
-        });
-
-        // Convert to minutes and round up
-        const durationInMinutes = Math.ceil(audioDuration / 60);
-
-        // Update user's video minutes usage
-        const { error: usageError } = await supabase.rpc("increment_user_video_minutes", {
-          p_user_id: currentUser?.id,
-          increment_value: durationInMinutes
-        });
-
-        if (usageError) {
-          throw new Error('Failed to update video minutes usage');
-        }
-
-        // Upload audio to Supabase
-        const publicUrl = await uploadAudioToSupabase(audioBlob);
-        console.log("Public URL: ",publicUrl);
-        // Create video with audio URL and duration
-        await generateVideo({
-          influencerId: influencer.id,
-          templateId: influencer.templateId,
-          script: row.script,
-          title: row.title,
-          audioUrl: publicUrl,
-        });
-      }
+      const contentPlans = await getContentPlans();
+      const calendarEvents = contentPlansToCalendarEvents(contentPlans);
+      setEvents(calendarEvents);
     } catch (error) {
-      console.error('Failed to generate videos:', error);
-      setError(error instanceof Error ? error.message : 'Failed to generate videos');
+      console.error('Failed to fetch content plans:', error);
     } finally {
-      setIsGenerating(false);
+      setIsLoading(false);
+    }
+  };
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setSearchParams({ view: mode });
+  };
+
+  const handleDateChange = (date: Date) => {
+    setCurrentDate(date);
+  };
+
+  const handleInfluencerDrop = (dateTime: Date, influencerId: string) => {
+    setComposerData({ influencerId, dateTime });
+    setShowComposer(true);
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEvent(event);
+    setShowInspector(true);
+  };
+
+  const handleNewSchedule = () => {
+    setComposerData(null);
+    setShowComposer(true);
+  };
+
+  const handleEventSave = async (eventData: any) => {
+    try {
+      console.log('Saving event:', eventData);
+      
+      const createRequest: CreateContentPlanRequest = {
+        influencerId: eventData.influencerId,
+        lookId: eventData.lookId,
+        prompt: eventData.prompt,
+        title: eventData.prompt.substring(0, 50),
+        startsAt: eventData.dateTime.toISOString(),
+        rrule: eventData.recurrence?.rruleString,
+      };
+      
+      const contentPlan = await createContentPlan(createRequest);
+      const newEvent: CalendarEvent = {
+        ...contentPlan,
+        title: contentPlan.title || contentPlan.prompt.substring(0, 50),
+        start: new Date(contentPlan.startsAt),
+        end: new Date(new Date(contentPlan.startsAt).getTime() + 60 * 60 * 1000), // 1 hour duration
+      };
+      
+      setEvents(prev => [...prev, newEvent]);
+      setShowComposer(false);
+    } catch (error) {
+      console.error('Failed to save event:', error);
+      }
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      await deleteContentPlans(selectedEvents);
+      setEvents(prev => prev.filter(event => !selectedEvents.includes(event.id)));
+      setSelectedEvents([]);
+    } catch (error) {
+      console.error('Failed to delete events:', error);
+    }
+  };
+
+  const handleEventUpdate = async (updatedEvent: CalendarEvent) => {
+    try {
+      await updateContentPlan(updatedEvent.id, {
+        prompt: updatedEvent.prompt,
+        title: updatedEvent.title,
+        startsAt: updatedEvent.start.toISOString(),
+        status: updatedEvent.status,
+      });
+      
+      setEvents(prev => prev.map(event => 
+        event.id === updatedEvent.id ? updatedEvent : event
+      ));
+    } catch (error) {
+      console.error('Failed to update event:', error);
+    }
+  };
+
+  const handleEventDelete = async (eventId: string) => {
+    try {
+      await deleteContentPlans([eventId]);
+      setEvents(prev => prev.filter(event => event.id !== eventId));
+      setShowInspector(false);
+      setSelectedEvent(null);
+    } catch (error) {
+      console.error('Failed to delete event:', error);
+    }
+  };
+
+  const handleEventMove = async (eventId: string, newDateTime: Date) => {
+    try {
+      const event = events.find(e => e.id === eventId);
+      if (!event) return;
+
+      await updateContentPlan(eventId, {
+        startsAt: newDateTime.toISOString(),
+      });
+
+      // Update local state
+      const updatedEvent = {
+        ...event,
+        start: newDateTime,
+        end: new Date(newDateTime.getTime() + 60 * 60 * 1000), // 1 hour duration
+        startsAt: newDateTime.toISOString(),
+      };
+
+      setEvents(prev => prev.map(e => e.id === eventId ? updatedEvent : e));
+      console.log(`✅ Event "${event.title}" moved to ${newDateTime.toLocaleDateString()}`);
+    } catch (error) {
+      console.error('Failed to move event:', error);
+        }
+  };
+
+  const handleEventDuplicate = async (eventId: string, newDateTime?: Date) => {
+    try {
+      const originalEvent = events.find(e => e.id === eventId);
+      if (!originalEvent) return;
+
+      const duplicateDateTime = newDateTime || new Date(originalEvent.start.getTime() + 24 * 60 * 60 * 1000); // Next day if no date specified
+
+      const createRequest = {
+        influencerId: originalEvent.influencerId,
+        lookId: originalEvent.lookId,
+        prompt: originalEvent.prompt,
+        title: `${originalEvent.title} (Copy)`,
+        startsAt: duplicateDateTime.toISOString(),
+        rrule: originalEvent.rrule,
+      };
+
+      const contentPlan = await createContentPlan(createRequest);
+      const newEvent = {
+        ...contentPlan,
+        title: contentPlan.title || contentPlan.prompt.substring(0, 50),
+        start: new Date(contentPlan.startsAt),
+        end: new Date(new Date(contentPlan.startsAt).getTime() + 60 * 60 * 1000),
+      };
+
+      setEvents(prev => [...prev, newEvent]);
+      console.log(`✅ Event "${originalEvent.title}" duplicated to ${duplicateDateTime.toLocaleDateString()}`);
+    } catch (error) {
+      console.error('Failed to duplicate event:', error);
     }
   };
 
   return (
-    <div className="p-6">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-gray-900">Content Planner</h2>
-        <button
-          onClick={handleGenerateSelected}
-          disabled={isGenerating || !rows.some(r => r.isSelected)}
-          className="px-4 py-2 bg-blue-600 text-black rounded-lg hover:bg-blue-700 disabled:opacity-50"
-        >
-          Generate Selected
-        </button>
-      </div>
+    <div className="h-screen bg-[#0D1117] flex flex-col overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0 bg-gradient-radial from-[#4DE0F9]/10 via-[#A855F7]/5 to-transparent opacity-50 -z-10"></div>
+      
+      {/* Top Bar */}
+      <TopBar
+        viewMode={viewMode}
+        onViewModeChange={handleViewModeChange}
+        currentDate={currentDate}
+        onDateChange={handleDateChange}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filterInfluencers={filterInfluencers}
+        onFilterChange={setFilterInfluencers}
+        onNewSchedule={handleNewSchedule}
+        availableInfluencers={influencersWithLooks}
+      />
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Assigned Influencer
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Script Creation
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Title
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                CTA
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Select
-              </th>
-              <th className="px-6 py-3"></th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {rows.map((row) => (
-              <tr key={row.id}>
-                <td className="px-6 py-4">
-                  <select
-                    value={row.influencerId}
-                    onChange={(e) => updateRow(row.id, { influencerId: e.target.value })}
-                    className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  >
-                    {influencers.map((inf) => (
-                      <option key={inf.id} value={inf.id}>
-                        {inf.name}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td className="px-6 py-4 relative">
-                  <div className="space-y-2">
-                    <textarea
-                      value={row.prompt}
-                      onChange={(e) => updateRow(row.id, { prompt: e.target.value })}
-                      placeholder="Enter prompt or script..."
-                      className={`content-planner-input block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 ${
-                        row.isGenerating ? 'bg-blue-50' : ''
-                      }`}
-                      rows={2}
-                    />
-                    {row.script && (
-                      <textarea
-                        value={row.script}
-                        onChange={(e) => updateRow(row.id, { script: e.target.value })}
-                        className="content-planner-input block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                        rows={2}
+      {/* Main Content */}
+      <div className="flex-1 flex overflow-hidden relative z-10">
+        {/* Influencer Sidebar */}
+        <div className="w-80 bg-white/5 border-r border-white/10 flex-shrink-0">
+          <InfluencerSidebar
+            influencers={influencersWithLooks}
+            searchQuery={searchQuery}
+            onDragStart={(id: string) => console.log('Drag started:', id)}
                       />
-                    )}
                   </div>
-                </td>
-                <td className="px-6 py-4">
-                  <input
-                    type="text"
-                    value={row.title}
-                    onChange={(e) => updateRow(row.id, { title: e.target.value })}
-                    placeholder="Enter title..."
-                    className="content-planner-input block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+
+        {/* Calendar View */}
+        <div className="flex-1 flex flex-col">
+          <CalendarView
+            events={events}
+            viewMode={viewMode}
+            currentDate={currentDate}
+            onEventClick={handleEventClick}
+            onDateChange={handleDateChange}
+            onInfluencerDrop={handleInfluencerDrop}
+            selectedEvents={selectedEvents}
+            onEventSelect={setSelectedEvents}
+            onEventMove={handleEventMove}
+            onEventDuplicate={handleEventDuplicate}
+            availableInfluencers={influencersWithLooks}
                   />
-                </td>
-                <td className="px-6 py-4">
-                  <input
-                    type="text"
-                    value={row.cta}
-                    onChange={(e) => updateRow(row.id, { cta: e.target.value })}
-                    placeholder="Enter call to action..."
-                    className="content-planner-input block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-                  />
-                </td>
-                <td className="px-6 py-4">
-                  <div className="relative">
-                    <button
-                      onClick={() => updateRow(row.id, { showAiOptions: !row.showAiOptions })}
-                      disabled={!row.prompt || row.isGenerating}
-                      className="px-3 py-1 bg-blue-600 text-black rounded hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
-                    >
-                      AI
-                      <ChevronDown className="h-4 w-4" />
-                    </button>
-                    {row.showAiOptions && (
-                      <div className="ai-options">
-                        <div className="py-1">
-                          <button
-                            onClick={() => generateScriptForRow(row, 'write')}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Write Prompt
-                          </button>
-                          <button
-                            onClick={() => generateScriptForRow(row, 'shorten')}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Shorten Script
-                          </button>
-                          <button
-                            onClick={() => generateScriptForRow(row, 'longer')}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            Make Longer
-                          </button>
-                          <button
-                            onClick={() => generateScriptForRow(row, 'engaging')}
-                            className="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                          >
-                            More Engaging
-                          </button>
-                        </div>
+        </div>
+
+        {/* Inspector Drawer */}
+        {showInspector && selectedEvent && (
+          <div className="w-96 bg-white border-l border-gray-200 flex-shrink-0">
+            <InspectorDrawer
+              event={selectedEvent}
+              onClose={() => setShowInspector(false)}
+              onEventUpdate={handleEventUpdate}
+              onEventDelete={handleEventDelete}
+            />
                       </div>
                     )}
-                  </div>
-                </td>
-                <td className="px-6 py-4">
-                  <input
-                    type="checkbox"
-                    checked={row.isSelected}
-                    onChange={(e) => updateRow(row.id, { isSelected: e.target.checked })}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                </td>
-                <td className="px-6 py-4">
-                  <button
-                    onClick={() => deleteRow(row.id)}
-                    className="text-red-600 hover:text-red-700"
-                    disabled={rows.length <= 1}
-                  >
-                    <Trash2 className="h-5 w-5" />
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
       </div>
 
-      <div className="mt-4 flex justify-center">
-        <button
-          onClick={addRow}
-          className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-black bg-blue-600 hover:bg-blue-700"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add Row
-        </button>
-      </div>
+      {/* Bulk Toolbar */}
+      {selectedEvents.length > 0 && (
+        <BulkToolbar
+          selectedCount={selectedEvents.length}
+          onDelete={handleBulkDelete}
+          onReschedule={() => console.log('Reschedule bulk')}
+          onDuplicate={() => console.log('Duplicate bulk')}
+        />
+      )}
+
+      {/* Schedule Composer Modal */}
+      {showComposer && (
+        <ScheduleComposerModal
+          isOpen={showComposer}
+          onClose={() => setShowComposer(false)}
+          onSave={handleEventSave}
+          prefilledData={composerData}
+          availableInfluencers={influencersWithLooks}
+        />
+      )}
+
+      {/* Toast Center */}
+      <ToastCenter />
     </div>
   );
 }

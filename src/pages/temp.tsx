@@ -182,7 +182,7 @@ function DashboardPage() {
                 <Headset size={20} />
               </button>
               <button
-                onClick={() => navigate('/planner')}
+                onClick={() => navigate('/content-planner')}
                 data-tour="calendar"
                 className="flex items-center justify-center bg-[#c9fffc] text-black p-2 rounded-lg hover:bg-[#a0fcf9] transition-colors"
                 title="Content Planner"

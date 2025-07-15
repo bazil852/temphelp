@@ -403,7 +403,7 @@ function DashboardPage() {
             icon={Calendar}
             title="Content Planner"
             description="Plan and schedule your content calendar"
-            to="/planner"
+            to="/content-planner"
           />
           <DashboardButton
             icon={Webhook}

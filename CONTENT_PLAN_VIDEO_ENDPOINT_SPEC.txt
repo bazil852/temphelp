@@ -1,0 +1,149 @@
+CONTENT PLAN VIDEO GENERATION ENDPOINT SPECIFICATION
+==================================================
+
+ENDPOINT OVERVIEW
+-----------------
+Path: POST /generate-video-from-plan
+Purpose: Generate videos automatically from scheduled content plans
+Context: Called by Supabase Edge Function during content plan dispatch
+Difference from /generate-video: Optimized for automated scheduling vs manual user requests
+
+REQUEST SPECIFICATION
+----------------------
+Method: POST
+Content-Type: application/json
+
+Request Body:
+{
+  "planId": "uuid",              // Content plan ID for tracking/logging
+  "influencerId": "uuid",        // Influencer or clone ID to use
+  "lookId": "string",            // Template/appearance ID (maps to templateId)
+  "prompt": "string",            // Text content to convert to video (maps to script)
+  "title": "string|null",        // Video title (optional)
+  "userId": "uuid"               // User who owns the content plan
+}
+
+FIELD MAPPING TO EXISTING GENERATE-VIDEO
+-----------------------------------------
+lookId → templateId     (appearance/template to use)
+prompt → script         (text content for video)
+planId → new field      (for plan tracking)
+userId → new field      (for user context)
+
+RESPONSE SPECIFICATION
+-----------------------
+Success Response (200):
+{
+  "success": true,
+  "videoId": "string",           // Generated video ID for tracking
+  "message": "Video generation started",
+  "planId": "uuid",              // Echo back for confirmation
+  "estimatedDuration": "number"  // Expected processing time in minutes
+}
+
+Error Response (400/500):
+{
+  "success": false,
+  "error": "string",             // Error type/code
+  "message": "string",           // Human readable error
+  "planId": "uuid"               // Echo back for tracking
+}
+
+AUTHENTICATION
+--------------
+- Uses userId field in request body for user identification
+- Standard user-based authentication (same as existing endpoints)
+- Validate that user owns the content plan and has access to the influencer
+
+ERROR HANDLING
+--------------
+Common Error Cases:
+1. Invalid/missing planId, influencerId, or lookId → 400 Bad Request
+2. Influencer/template not found → 404 Not Found  
+3. User does not own content plan or influencer → 403 Forbidden
+4. User quota exceeded → 429 Too Many Requests
+5. Video generation service unavailable → 503 Service Unavailable
+6. Internal processing error → 500 Internal Server Error
+
+IMPLEMENTATION NOTES
+--------------------
+1. This endpoint should internally call the same video generation logic as /generate-video
+2. Key differences:
+   - No audioUrl handling (plans use text-to-speech internally)
+   - No manual user interaction (automated execution)
+   - Enhanced logging for scheduled content tracking
+   - May need different rate limiting (automated vs user-initiated)
+
+3. Suggested processing flow:
+   a. Validate request structure and authentication
+   b. Verify influencer/template exists and user has access
+   c. Check user quotas/limits
+   d. Convert prompt to script format if needed
+   e. Initiate video generation (same as manual flow)
+   f. Return video ID and tracking info
+   g. Log plan execution for monitoring
+
+4. Monitoring/Logging:
+   - Log all plan executions with planId for debugging
+   - Track success/failure rates for content plans
+   - Monitor processing times for scheduled content
+
+EDGE FUNCTION INTEGRATION
+-------------------------
+The Supabase Edge Function will call this endpoint like:
+
+```javascript
+const resp = await fetch(`${BACKEND_URL}/generate-video-from-plan`, {
+  method: "POST",
+  headers: { 
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({ 
+    planId: plan.id,
+    influencerId: plan.influencer_id,
+    lookId: plan.look_id,
+    prompt: plan.prompt,
+    title: plan.title,
+    userId: plan.user_id
+  })
+});
+```
+
+TESTING
+-------
+Test Cases:
+1. Valid content plan data → Should return 200 with videoId
+2. Missing required fields → Should return 400 with clear error
+3. Invalid influencerId → Should return 404 
+4. User doesn't own content plan → Should return 403
+5. Service unavailable → Should return 503
+
+Sample cURL for testing:
+```bash
+curl -X POST https://your-backend.com/generate-video-from-plan \
+  -H "Content-Type: application/json" \
+  -d '{
+    "planId": "123e4567-e89b-12d3-a456-426614174000",
+    "influencerId": "123e4567-e89b-12d3-a456-426614174001", 
+    "lookId": "template_001",
+    "prompt": "Welcome to our weekly update! Today we are discussing...",
+    "title": "Weekly Update - January 2025",
+    "userId": "123e4567-e89b-12d3-a456-426614174002"
+  }'
+```
+
+ENVIRONMENT VARIABLES NEEDED
+----------------------------
+- Any existing video generation service credentials
+- Database connection strings (if different from main app)
+
+DEPLOYMENT CHECKLIST
+--------------------
+□ Endpoint implemented and tested
+□ User authorization validation implemented
+□ Error handling implemented
+□ Logging/monitoring added
+□ Rate limiting configured (if needed)
+□ Environment variables set
+□ Integration testing with edge function
+□ Documentation updated 

@@ -114,6 +114,14 @@ function App() {
             }
           />
           <Route
+            path="content-planner"
+            element={
+              <ProtectedRoute>
+                <ContentPlannerPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
             path="planner"
             element={
               <ProtectedRoute>
